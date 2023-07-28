@@ -1619,7 +1619,6 @@ dependencies = [
  "atoi",
  "byteorder",
  "bytes",
- "chrono",
  "crc",
  "crossbeam-queue",
  "dotenvy",
@@ -1644,8 +1643,10 @@ dependencies = [
  "smallvec",
  "sqlformat",
  "thiserror",
+ "time 0.3.23",
  "tracing",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -1697,7 +1698,6 @@ dependencies = [
  "bitflags 2.3.3",
  "byteorder",
  "bytes",
- "chrono",
  "crc",
  "digest",
  "dotenvy",
@@ -1725,7 +1725,9 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror",
+ "time 0.3.23",
  "tracing",
+ "uuid",
  "whoami",
 ]
 
@@ -1739,7 +1741,6 @@ dependencies = [
  "base64",
  "bitflags 2.3.3",
  "byteorder",
- "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -1765,7 +1766,9 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror",
+ "time 0.3.23",
  "tracing",
+ "uuid",
  "whoami",
 ]
 
@@ -1776,7 +1779,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4c21bf34c7cae5b283efb3ac1bcc7670df7561124dc2f8bdc0b59be40f79a2"
 dependencies = [
  "atoi",
- "chrono",
  "flume",
  "futures-channel",
  "futures-core",
@@ -1788,8 +1790,10 @@ dependencies = [
  "percent-encoding",
  "serde",
  "sqlx-core",
+ "time 0.3.23",
  "tracing",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2062,6 +2066,7 @@ dependencies = [
  "serde",
  "sqlx",
  "sqlx-postgres",
+ "time 0.3.23",
  "tracing",
  "tracing-actix-web",
  "uuid",
@@ -2074,6 +2079,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
 dependencies = [
  "getrandom",
+ "serde",
 ]
 
 [[package]]
