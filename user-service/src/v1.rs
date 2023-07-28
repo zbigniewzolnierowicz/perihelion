@@ -30,7 +30,6 @@ pub(crate) async fn logout() -> impl Responder {
     // add jwt to blacklist
     // get current refresh token
     // add refresh token to blacklist
-
     "logout not implemented"
 }
 
