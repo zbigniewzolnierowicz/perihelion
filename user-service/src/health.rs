@@ -1,36 +1,44 @@
 use std::collections::HashMap;
 
-use actix_web::{get, http::StatusCode, HttpResponse, Responder, Scope, web};
+use actix_web::{get, http::StatusCode, web, HttpResponse, Responder, Scope};
+use sqlx::{Pool, Postgres};
+use tracing::instrument;
 
-use crate::PONG;
+use crate::AppState;
 
-const HEALTHY: &str = "healthy";
-const UNHEALTHY: &str = "unhealthy";
+enum Health {
+    Good,
+    Bad,
+}
 
-async fn service_health_check() -> &'static str {
-    // TODO: replace with a central config for port
-    let res = reqwest::get("http://localhost:8999/ping").await;
-    match res {
-        Ok(d) => d.text().await.map_or(UNHEALTHY, |t| {
-            if t == PONG.to_string() {
-                HEALTHY
-            } else {
-                UNHEALTHY
-            }
-        }),
-        Err(_) => UNHEALTHY,
+impl Into<String> for Health {
+    fn into(self) -> String {
+        match self {
+            Self::Bad => "unhealthy".to_owned(),
+            Self::Good => "healthy".to_owned(),
+        }
     }
 }
 
-#[get("/")]
-pub(crate) async fn health_check() -> impl Responder {
-    let mut healthchecks = HashMap::new();
-    healthchecks.insert("user-service", service_health_check().await);
+#[instrument]
+async fn database_health_check(pool: &Pool<Postgres>) -> Health {
+    match sqlx::query("SELECT 1")
+        .fetch_one(pool)
+        .await {
+            Ok(_) => Health::Good,
+            Err(_) => Health::Bad
+        }
+}
+
+#[get("")]
+pub(crate) async fn health_check(data: web::Data<AppState>) -> impl Responder {
+    let mut healthchecks: HashMap<&str, String> = HashMap::new();
+
+    healthchecks.insert("database", database_health_check(&data.db).await.into());
 
     HttpResponse::build(StatusCode::OK).json(healthchecks)
 }
 
 pub(crate) fn router(path: &str) -> Scope {
-    web::scope(path)
-        .service(health_check)
+    web::scope(path).service(health_check)
 }
