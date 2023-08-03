@@ -72,8 +72,8 @@ mod test {
     static SUB: &'static str = "IAMUSER";
 
     fn fixture() -> JwtService {
-        let jwt_private_key = fs::read("./private.pem").unwrap();
-        let jwt_public_key = fs::read("./public.pem").unwrap();
+        let jwt_private_key = fs::read("./test/private.pem").unwrap();
+        let jwt_public_key = fs::read("./test/public.pem").unwrap();
 
         JwtService::new(ISSUER, jwt_private_key, jwt_public_key)
     }
