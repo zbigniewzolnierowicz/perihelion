@@ -14,6 +14,7 @@ pub(crate) struct Config {
     pub(crate) port: u16,
     pub(crate) ip: IpAddr,
     pub(crate) hostname: String,
+    pub(crate) telemetry: bool
 }
 
 impl Config {
@@ -34,6 +35,7 @@ impl Default for Config {
             public_key_path: "./public.pem".into(),
             port: 8999,
             ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            telemetry: true,
         }
     }
 }

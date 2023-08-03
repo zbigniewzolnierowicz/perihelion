@@ -74,7 +74,10 @@ async fn main() -> color_eyre::Result<()> {
 
     let config: Config = Config::figment().extract()?;
 
-    init_telemetry(&config.name);
+    if config.telemetry {
+        init_telemetry(&config.name)
+    };
+
     let jwt_private_key = fs::read(config.private_key_path.relative())?;
     let jwt_public_key = fs::read(config.public_key_path.relative())?;
     let jwt = JwtService::new(jwt_private_key, jwt_public_key);
@@ -103,5 +106,5 @@ async fn main() -> color_eyre::Result<()> {
     .bind((config.ip, config.port))?
     .run()
     .await
-    .map_err(eyre::Report::from)
+    .map_err(color_eyre::Report::from)
 }
