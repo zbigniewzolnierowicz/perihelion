@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+  user-db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: perihelion
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: perihelion-user
+    volumes:
+      - db:/var/lib/postgres/data
+
+volumes:
+  db:
+  nodes:
+  shards:

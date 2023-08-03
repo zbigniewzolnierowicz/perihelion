@@ -18,6 +18,7 @@ time = { version = "0.3.23", features = ["serde-human-readable"] }
 tracing = { version = "0.1.37", features = ["log"] }
 tracing-actix-web = "0.7.5"
 uuid = { version = "1.4.1", features = ["v4", "serde"] }
-rsa = "*"
-rand = "*"
-derive_more = "*"
+rsa = "0.9.2"
+rand = "0.8.5"
+derive_more = "0.99.17"
+reqwest = "0.11.18"
