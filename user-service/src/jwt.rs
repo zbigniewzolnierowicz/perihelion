@@ -62,7 +62,7 @@ impl JwtService {
 mod test {
     use std::fs;
 
-    use jsonwebtoken::TokenData;
+    use jsonwebtoken::{EncodingKey, TokenData};
 
     use crate::jwt::JwtServiceError;
 
@@ -136,7 +136,6 @@ mod test {
             },
             _ => false,
         });
-
     }
 
     #[test]
@@ -165,23 +164,42 @@ mod test {
     #[test]
     fn decode_bad_issuer() {
         let service = fixture();
-        let token = include_str!("./fixtures/jwt/test_bad_issuer.txt").trim_end();
+        let now = time::OffsetDateTime::now_utc();
+        let duration = time::Duration::new(60 * 15, 0);
+        let claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: "BADISSUERREALLYBADNOREALLY".to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
 
-        assert!(match service.decode(token) {
-            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
-                jsonwebtoken::errors::ErrorKind::InvalidIssuer => true,
-                _ => false,
-            },
-            _ => false,
-        });
+        let token = service.clone().encode(claims).unwrap();
+
+        let JwtServiceError::JsonWebTokenError(error) = service.clone().decode(&token).unwrap_err();
+        assert!(matches!(error.kind(), jsonwebtoken::errors::ErrorKind::InvalidIssuer));
     }
 
     #[test]
     fn decode_bad_algorithm() {
-        let service = fixture();
-        let token = include_str!("./fixtures/jwt/test_bad_algorithm.txt").trim_end();
+        let now = time::OffsetDateTime::now_utc();
+        let duration = time::Duration::new(60 * 15, 0);
+        let claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: ISSUER.to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
 
-        assert!(match service.decode(token) {
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claims,
+            &EncodingKey::from_base64_secret("UEFTU1dPUkQK").unwrap(),
+        )
+        .unwrap();
+
+        let service = fixture();
+
+        assert!(match service.decode(&token) {
             Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
                 jsonwebtoken::errors::ErrorKind::InvalidAlgorithm => true,
                 _ => false,
