@@ -5,10 +5,16 @@ pub(crate) mod v1;
 
 use actix_web::{get, web::Data, App, HttpServer, Responder};
 
-use env_logger::Env as LogEnv;
-use figment::{providers::Env, Figment};
+use dotenvy::dotenv;
+use figment::{
+    providers::{Env, Serialized},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
-use std::{fs, net::{IpAddr, Ipv4Addr}};
+use std::{
+    fs,
+    net::{IpAddr, Ipv4Addr},
+};
 use tracing::info;
 use tracing_actix_web::TracingLogger;
 
@@ -28,51 +34,62 @@ pub(crate) struct AppState {
 pub(crate) type State = Data<AppState>;
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct AppConfig<'a> {
-    database_url: &'a str,
-    private_key_path: &'a str,
-    public_key_path: &'a str,
+pub(crate) struct Config {
+    database_url: String,
+    private_key_path: String,
+    public_key_path: String,
     port: u16,
     ip: IpAddr,
 }
 
-impl Default for AppConfig<'_> {
+impl Config {
+    fn figment() -> Figment {
+        Figment::from(Serialized::defaults(Self::default()))
+            .merge(Env::prefixed("USER_"))
+            .merge(Env::raw().only(&["DATABASE_URL"]))
+    }
+}
+
+impl Default for Config {
     fn default() -> Self {
-        AppConfig {
-            database_url: "",
-            private_key_path: "./private.pem",
-            public_key_path: "./public.pem",
+        Config {
+            database_url: "".to_owned(),
+            private_key_path: "./private.pem".to_owned(),
+            public_key_path: "./public.pem".to_owned(),
             port: 8999,
-            ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))
+            ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
         }
     }
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    let config: AppConfig = Figment::new()
-        .merge(Env::prefixed("USER_"))
-        .merge(Env::raw().only(&["DATABASE_URL"]))
-        .extract()
-        .expect("Could not load config.");
+async fn main() -> anyhow::Result<()> {
+    let _ = dotenv();
+    tracing_subscriber::fmt::init();
 
-    env_logger::init_from_env(LogEnv::default().default_filter_or("info"));
+    let config: Config = Config::figment()
+        .extract()?;
 
     let jwt_private_key = fs::read(config.private_key_path)?;
     let jwt_public_key = fs::read(config.public_key_path)?;
     let jwt = JwtService::new(jwt_private_key, jwt_public_key);
 
-    info!(target: "initialization", "Initializing the server");
+    info!(
+        address = config.ip.to_string(),
+        port = config.port,
+        "Initializing server"
+    );
 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(AppState { jwt: jwt.clone() }))
             .wrap(TracingLogger::default())
             .service(ping)
-            .service(health::health_check)
+            .service(health::router("health"))
             .service(v1::router("api/v1"))
     })
     .bind((config.ip, config.port))?
     .run()
     .await
+    .map_err(anyhow::Error::from)
 }

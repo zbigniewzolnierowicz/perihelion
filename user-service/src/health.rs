@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{get, http::StatusCode, HttpResponse, Responder};
+use actix_web::{get, http::StatusCode, HttpResponse, Responder, Scope, web};
 
 use crate::PONG;
 
@@ -22,10 +22,15 @@ async fn service_health_check() -> &'static str {
     }
 }
 
-#[get("/health")]
+#[get("/")]
 pub(crate) async fn health_check() -> impl Responder {
     let mut healthchecks = HashMap::new();
     healthchecks.insert("user-service", service_health_check().await);
 
     HttpResponse::build(StatusCode::OK).json(healthchecks)
+}
+
+pub(crate) fn router(path: &str) -> Scope {
+    web::scope(path)
+        .service(health_check)
 }
