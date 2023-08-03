@@ -22,12 +22,10 @@ impl Into<String> for Health {
 
 #[instrument]
 async fn database_health_check(pool: &Pool<Postgres>) -> Health {
-    match sqlx::query("SELECT 1")
-        .fetch_one(pool)
-        .await {
-            Ok(_) => Health::Good,
-            Err(_) => Health::Bad
-        }
+    match sqlx::query("SELECT 1").fetch_one(pool).await {
+        Ok(_) => Health::Good,
+        Err(_) => Health::Bad,
+    }
 }
 
 #[get("")]

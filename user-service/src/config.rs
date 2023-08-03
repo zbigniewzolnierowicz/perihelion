@@ -1,4 +1,4 @@
-use figment::providers::{Serialized, Env};
+use figment::providers::{Env, Serialized};
 use figment::Figment;
 use std::net::{IpAddr, Ipv4Addr};
 

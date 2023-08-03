@@ -1,7 +1,6 @@
 use derive_more::{Display, Error};
 use jsonwebtoken::{
-    errors::Error as JwtError,
-    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
+    errors::Error as JwtError, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
 };
 use serde::{Deserialize, Serialize};
 

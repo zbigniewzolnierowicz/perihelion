@@ -5,8 +5,9 @@ use actix_web::{
 };
 
 use crate::{
-    jwt::{Claims, JwtServiceError, JwtService},
-    State, error::{AppError, AppResult},
+    error::{AppError, AppResult},
+    jwt::{Claims, JwtService, JwtServiceError},
+    State,
 };
 
 use derive_more::{Display, Error};
@@ -20,9 +21,9 @@ pub(crate) enum LoginError {
 }
 
 impl From<ToStrError> for LoginError {
-fn from(value: ToStrError) -> Self {
-    Self::AuthHeaderDecodeError(value)
-}
+    fn from(value: ToStrError) -> Self {
+        Self::AuthHeaderDecodeError(value)
+    }
 }
 
 impl From<JwtServiceError> for LoginError {
@@ -88,7 +89,7 @@ pub(crate) async fn logout(state: State, req: HttpRequest) -> AppResult<String> 
     // add jwt to blacklist
     // get current refresh token
     // add refresh token to blacklist
-    
+
     Ok(sub)
 }
 
@@ -114,13 +115,12 @@ pub(crate) async fn signup(state: State, req: HttpRequest) -> AppResult<String> 
     };
 
     // TODO: implement signup
-    
+
     Ok("Implement signup here".to_string())
 }
 
 #[post("refresh")]
 pub(crate) async fn refresh() -> impl Responder {
-
     // TODO: Add refresh token logic
     // check if Authentication header has bearer token
     // if not, error out
@@ -135,8 +135,7 @@ pub(crate) async fn refresh() -> impl Responder {
 #[get("me")]
 pub(crate) async fn me(state: State, req: HttpRequest) -> Result<String, AppError> {
     let jwt = state.jwt.clone();
-    let claims = claims(&req, jwt)
-        .await?;
+    let claims = claims(&req, jwt).await?;
 
     // TODO: Add user info logic
     // get user info
