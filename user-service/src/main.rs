@@ -80,7 +80,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let jwt_private_key = fs::read(config.private_key_path.relative())?;
     let jwt_public_key = fs::read(config.public_key_path.relative())?;
-    let jwt = JwtService::new(jwt_private_key, jwt_public_key);
+    let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key);
 
     let db = PgPoolOptions::new()
         .max_connections(5)

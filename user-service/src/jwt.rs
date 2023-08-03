@@ -11,10 +11,12 @@ pub(crate) struct JwtService {
     validation: Validation,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Claims {
-    pub(crate) exp: usize,
+    pub(crate) exp: i64,
     pub(crate) sub: String,
+    pub(crate) iat: i64,
+    pub(crate) iss: String,
 }
 
 #[derive(Debug, Display, Error)]
@@ -29,8 +31,10 @@ impl From<JwtError> for JwtServiceError {
 }
 
 impl JwtService {
-    pub(crate) fn new(jwt_private_key: Vec<u8>, jwt_public_key: Vec<u8>) -> Self {
-        let validation = Validation::new(Algorithm::RS256);
+    pub(crate) fn new(issuer: &str, jwt_private_key: Vec<u8>, jwt_public_key: Vec<u8>) -> Self {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_issuer(&[issuer]);
+
         JwtService {
             decode_key: DecodingKey::from_rsa_pem(jwt_public_key.as_slice())
                 .expect("could not load public key"),
@@ -40,14 +44,15 @@ impl JwtService {
         }
     }
 
-    pub fn decode(self, token: String) -> Result<TokenData<Claims>, JwtServiceError> {
+    pub fn decode(self, token: &str) -> Result<TokenData<Claims>, JwtServiceError> {
         let decoded = jsonwebtoken::decode::<Claims>(&token, &self.decode_key, &self.validation)?;
 
         Ok(decoded)
     }
 
     pub fn encode(self, claims: Claims) -> Result<String, JwtServiceError> {
-        let decoded = jsonwebtoken::encode(&Header::default(), &claims, &self.encode_key)?;
+        let decoded =
+            jsonwebtoken::encode(&Header::new(Algorithm::RS256), &claims, &self.encode_key)?;
 
         Ok(decoded)
     }
@@ -55,65 +60,133 @@ impl JwtService {
 
 #[cfg(test)]
 mod test {
-    use lazy_static::lazy_static;
-    use rsa::{
-        pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey},
-        pkcs8::LineEnding,
-        RsaPrivateKey, RsaPublicKey,
-    };
+    use std::fs;
 
-    use super::JwtService;
+    use jsonwebtoken::TokenData;
 
-    lazy_static! {
-        static ref JWT_SERVICE: JwtService = fixture();
-    }
+    use crate::jwt::JwtServiceError;
+
+    use super::{Claims, JwtService};
+
+    static ISSUER: &'static str = "user-service";
+    static SUB: &'static str = "IAMUSER";
 
     fn fixture() -> JwtService {
-        let mut rng = rand::thread_rng();
-        let bits = 2048;
-        let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+        let jwt_private_key = fs::read("./private.pem").unwrap();
+        let jwt_public_key = fs::read("./public.pem").unwrap();
 
-        let priv_key_pem = priv_key
-            .to_pkcs1_pem(LineEnding::LF)
-            .expect("could not encode to PEM");
-
-        let pub_key_pem = RsaPublicKey::from(&priv_key)
-            .to_pkcs1_pem(LineEnding::LF)
-            .expect("could not encode to PEM");
-
-        JwtService::new(
-            priv_key_pem.as_bytes().to_vec(),
-            pub_key_pem.as_bytes().to_vec(),
-        )
+        JwtService::new(ISSUER, jwt_private_key, jwt_public_key)
     }
 
     #[test]
     fn encode_properly() {
-        let _service = JWT_SERVICE.clone();
-        todo!("implement test for properly encoding")
-    }
+        let service = fixture();
+        let now = time::OffsetDateTime::from_unix_timestamp(1).unwrap();
+        let duration = time::Duration::new(60 * 15, 0);
+        let claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: ISSUER.to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
 
-    #[test]
-    fn encode_missing_required_claim() {
-        let _service = JWT_SERVICE.clone();
-        todo!("implement test for missing required claims")
+        let result = service.encode(claims).unwrap();
+        let should_be_jwt = include_str!("./fixtures/jwt/test_correct_jwt.txt").trim_end();
+
+        assert_eq!(result, should_be_jwt);
     }
 
     #[test]
     fn decode_properly() {
-        let _service = JWT_SERVICE.clone();
-        todo!("implement test for decoding properly")
+        let service = fixture();
+
+        let now = time::OffsetDateTime::now_utc();
+        let duration = time::Duration::new(60 * 15, 0);
+        let claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: ISSUER.to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
+
+        let token = service.clone().encode(claims).unwrap();
+        let TokenData { claims, .. } = service.decode(&token).unwrap();
+
+        let now = time::OffsetDateTime::now_utc();
+        let duration = time::Duration::new(60 * 15, 0);
+        let test_against_claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: ISSUER.to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
+
+        assert_eq!(claims, test_against_claims)
     }
 
     #[test]
     fn decode_invalid_token() {
-        let _service = JWT_SERVICE.clone();
-        todo!("implement test for erroring when bad token")
+        let service = fixture();
+
+        let token = "BADTOKEN";
+        assert!(match service.decode(token) {
+            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
+                jsonwebtoken::errors::ErrorKind::InvalidToken => true,
+                _ => false,
+            },
+            _ => false,
+        });
+
     }
 
     #[test]
     fn decode_expired_token() {
-        let _service = JWT_SERVICE.clone();
-        todo!("implement test for erroring when expired token")
+        let service = fixture();
+        let now = time::OffsetDateTime::from_unix_timestamp(1).unwrap();
+        let duration = time::Duration::new(60 * 15, 0);
+        let claims = Claims {
+            iat: now.unix_timestamp(),
+            iss: ISSUER.to_owned(),
+            exp: (now + duration).unix_timestamp(),
+            sub: SUB.to_owned(),
+        };
+
+        let token = service.clone().encode(claims).unwrap();
+
+        assert!(match service.decode(&token) {
+            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => true,
+                _ => false,
+            },
+            _ => false,
+        });
+    }
+
+    #[test]
+    fn decode_bad_issuer() {
+        let service = fixture();
+        let token = include_str!("./fixtures/jwt/test_bad_issuer.txt").trim_end();
+
+        assert!(match service.decode(token) {
+            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
+                jsonwebtoken::errors::ErrorKind::InvalidIssuer => true,
+                _ => false,
+            },
+            _ => false,
+        });
+    }
+
+    #[test]
+    fn decode_bad_algorithm() {
+        let service = fixture();
+        let token = include_str!("./fixtures/jwt/test_bad_algorithm.txt").trim_end();
+
+        assert!(match service.decode(token) {
+            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
+                jsonwebtoken::errors::ErrorKind::InvalidAlgorithm => true,
+                _ => false,
+            },
+            _ => false,
+        });
     }
 }

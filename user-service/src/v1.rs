@@ -51,7 +51,7 @@ pub(crate) async fn claims(req: &HttpRequest, jwt: JwtService) -> Result<Claims,
     // check if access token is valid
     // if not, error out
 
-    let decoded = jwt.decode(token)?;
+    let decoded = jwt.decode(&token)?;
 
     // TODO: Implement blacklist checking
     // check if access token is on blacklist
@@ -81,7 +81,7 @@ pub(crate) async fn login() -> impl Responder {
 #[post("logout")]
 pub(crate) async fn logout(state: State, req: HttpRequest) -> AppResult<String> {
     let jwt = state.jwt.clone();
-    let Claims { sub, exp: _ } = claims(&req, jwt).await?;
+    let Claims { sub, .. } = claims(&req, jwt).await?;
 
     // TODO: implement logout
     // check if Authentication header has bearer token
@@ -96,7 +96,7 @@ pub(crate) async fn logout(state: State, req: HttpRequest) -> AppResult<String> 
 #[post("logout/all")]
 pub(crate) async fn logout_all(state: State, req: HttpRequest) -> AppResult<String> {
     let jwt = state.jwt.clone();
-    let Claims { sub, exp: _ } = claims(&req, jwt).await?;
+    let Claims { sub, .. } = claims(&req, jwt).await?;
 
     // TODO: implement logout for all
     // get all jwt for current user
