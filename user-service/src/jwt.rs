@@ -93,7 +93,7 @@ mod test {
         };
 
         let result = service.encode(claims).unwrap();
-        let should_be_jwt = include_str!("./fixtures/jwt/test_correct_jwt.txt").trim_end();
+        let should_be_jwt = include_str!("fixtures/test_correct_jwt.txt").trim_end();
 
         assert_eq!(result, should_be_jwt);
     }

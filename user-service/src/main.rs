@@ -6,7 +6,8 @@ pub(crate) mod error;
 pub(crate) mod health;
 pub(crate) mod jwt;
 pub(crate) mod models;
-pub(crate) mod v1;
+pub(crate) mod routes;
+pub(crate) mod login_check;
 
 use std::fs;
 
@@ -31,6 +32,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
 use crate::config::Config;
 use crate::jwt::JwtService;
+use crate::routes::v1;
 
 pub(crate) const PONG: &str = "pong!";
 
