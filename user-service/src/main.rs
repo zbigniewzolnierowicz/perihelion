@@ -1,11 +1,18 @@
+#![allow(dead_code)] // TODO: Remove this after implementing login
+
 pub(crate) mod config;
+pub(crate) mod dto;
 pub(crate) mod error;
 pub(crate) mod health;
 pub(crate) mod jwt;
+pub(crate) mod models;
 pub(crate) mod v1;
 
 use std::fs;
 
+use actix_web::body::MessageBody;
+use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
+use actix_web::Error;
 use actix_web::{get, web::Data, App, HttpServer, Responder};
 
 use dotenvy::dotenv;
@@ -78,14 +85,37 @@ async fn main() -> color_eyre::Result<()> {
         init_telemetry(&config.name)
     };
 
-    let jwt_private_key = fs::read(config.private_key_path.relative())?;
-    let jwt_public_key = fs::read(config.public_key_path.relative())?;
-    let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key);
-
     let db = PgPoolOptions::new()
         .max_connections(5)
         .connect(&config.database_url)
         .await?;
+
+    let Config { ip, port, .. } = config;
+
+    HttpServer::new(move || create_app(db.clone(), config.clone()).expect("Creating an app failed"))
+        .bind((ip, port))?
+        .run()
+        .await
+        .map_err(color_eyre::Report::from)
+}
+
+pub(crate) fn create_app(
+    db: Pool<Postgres>,
+    config: Config,
+) -> color_eyre::Result<
+    App<
+        impl ServiceFactory<
+            ServiceRequest,
+            Config = (),
+            Response = ServiceResponse<impl MessageBody>,
+            Error = Error,
+            InitError = (),
+        >,
+    >,
+> {
+    let jwt_private_key = fs::read(config.private_key_path.relative())?;
+    let jwt_public_key = fs::read(config.public_key_path.relative())?;
+    let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key);
 
     info!(
         address = config.ip.to_string(),
@@ -94,17 +124,10 @@ async fn main() -> color_eyre::Result<()> {
     );
 
     let data = Data::new(AppState { jwt, db });
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(data.clone())
-            .wrap(TracingLogger::default())
-            .service(ping)
-            .service(health::router("health"))
-            .service(v1::router("api/v1"))
-    })
-    .bind((config.ip, config.port))?
-    .run()
-    .await
-    .map_err(color_eyre::Report::from)
+    Ok(App::new()
+        .app_data(data.clone())
+        .wrap(TracingLogger::default())
+        .service(ping)
+        .service(health::router("health"))
+        .service(v1::router("api/v1")))
 }

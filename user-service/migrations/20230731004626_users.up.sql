@@ -1,18 +1,33 @@
 CREATE TABLE IF NOT EXISTS users (
     id uuid DEFAULT uuid_generate_v4 (),
-    username VARCHAR NOT NULL,
-    email VARCHAR NOT NULL,
+    username VARCHAR NOT NULL UNIQUE,
+    email VARCHAR NOT NULL UNIQUE,
+    display_name VARCHAR NOT NULL,
 
     PRIMARY KEY (id)
 );
 
+CREATE TYPE credential_type AS enum ('password');
+
+CREATE TABLE IF NOT EXISTS credentials (
+    user_id uuid NOT NULL,
+    credential_type credential_type DEFAULT 'password',
+    credential_content TEXT NOT NULL,
+
+    PRIMARY KEY (user_id, credential_type),
+    CONSTRAINT
+        fk_credentials_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS jwt (
-    id UUID UNIQUE NOT NULL,
+    jwt_id UUID UNIQUE NOT NULL,
     user_id UUID UNIQUE NOT NULL,
     content TEXT NOT NULL,
     expiration TIMESTAMP NOT NULL,
 
-    PRIMARY KEY (id, user_id),
+    PRIMARY KEY (jwt_id, user_id),
     CONSTRAINT
         fk_jwt_user
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -20,12 +35,12 @@ CREATE TABLE IF NOT EXISTS jwt (
 );
 
 CREATE TABLE IF NOT EXISTS refresh (
-    id UUID UNIQUE NOT NULL,
+    refresh_id UUID UNIQUE NOT NULL,
     user_id UUID UNIQUE NOT NULL,
     content TEXT NOT NULL,
     expiration TIMESTAMP NOT NULL,
 
-    PRIMARY KEY (id, user_id),
+    PRIMARY KEY (refresh_id, user_id),
     CONSTRAINT
         fk_refresh_user
         FOREIGN KEY (user_id) REFERENCES users(id)

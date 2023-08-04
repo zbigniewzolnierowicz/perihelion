@@ -3,6 +3,7 @@ use jsonwebtoken::{
     errors::Error as JwtError, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub(crate) struct JwtService {
@@ -14,7 +15,7 @@ pub(crate) struct JwtService {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Claims {
     pub(crate) exp: i64,
-    pub(crate) sub: String,
+    pub(crate) sub: Uuid,
     pub(crate) iat: i64,
     pub(crate) iss: String,
 }
@@ -45,7 +46,7 @@ impl JwtService {
     }
 
     pub fn decode(self, token: &str) -> Result<TokenData<Claims>, JwtServiceError> {
-        let decoded = jsonwebtoken::decode::<Claims>(&token, &self.decode_key, &self.validation)?;
+        let decoded = jsonwebtoken::decode::<Claims>(token, &self.decode_key, &self.validation)?;
 
         Ok(decoded)
     }
@@ -63,13 +64,14 @@ mod test {
     use std::fs;
 
     use jsonwebtoken::{EncodingKey, TokenData};
+    use uuid::Uuid;
 
     use crate::jwt::JwtServiceError;
 
     use super::{Claims, JwtService};
 
-    static ISSUER: &'static str = "user-service";
-    static SUB: &'static str = "IAMUSER";
+    static ISSUER: &str = "user-service";
+    static SUB: Uuid = Uuid::nil();
 
     fn fixture() -> JwtService {
         let jwt_private_key = fs::read("./test/private.pem").unwrap();
@@ -87,7 +89,7 @@ mod test {
             iat: now.unix_timestamp(),
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         let result = service.encode(claims).unwrap();
@@ -106,7 +108,7 @@ mod test {
             iat: now.unix_timestamp(),
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -118,7 +120,7 @@ mod test {
             iat: now.unix_timestamp(),
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         assert_eq!(claims, test_against_claims)
@@ -130,10 +132,8 @@ mod test {
 
         let token = "BADTOKEN";
         assert!(match service.decode(token) {
-            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
-                jsonwebtoken::errors::ErrorKind::InvalidToken => true,
-                _ => false,
-            },
+            Err(JwtServiceError::JsonWebTokenError(e)) =>
+                matches!(e.kind(), jsonwebtoken::errors::ErrorKind::InvalidToken),
             _ => false,
         });
     }
@@ -147,16 +147,14 @@ mod test {
             iat: now.unix_timestamp(),
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         let token = service.clone().encode(claims).unwrap();
 
         assert!(match service.decode(&token) {
-            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => true,
-                _ => false,
-            },
+            Err(JwtServiceError::JsonWebTokenError(e)) =>
+                matches!(e.kind(), jsonwebtoken::errors::ErrorKind::ExpiredSignature),
             _ => false,
         });
     }
@@ -170,13 +168,16 @@ mod test {
             iat: now.unix_timestamp(),
             iss: "BADISSUERREALLYBADNOREALLY".to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         let token = service.clone().encode(claims).unwrap();
 
-        let JwtServiceError::JsonWebTokenError(error) = service.clone().decode(&token).unwrap_err();
-        assert!(matches!(error.kind(), jsonwebtoken::errors::ErrorKind::InvalidIssuer));
+        assert!(match service.decode(&token) {
+            Err(JwtServiceError::JsonWebTokenError(e)) =>
+                matches!(e.kind(), jsonwebtoken::errors::ErrorKind::InvalidIssuer),
+            _ => false,
+        });
     }
 
     #[test]
@@ -187,7 +188,7 @@ mod test {
             iat: now.unix_timestamp(),
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
-            sub: SUB.to_owned(),
+            sub: SUB,
         };
 
         let token = jsonwebtoken::encode(
@@ -200,10 +201,8 @@ mod test {
         let service = fixture();
 
         assert!(match service.decode(&token) {
-            Err(JwtServiceError::JsonWebTokenError(e)) => match e.kind() {
-                jsonwebtoken::errors::ErrorKind::InvalidAlgorithm => true,
-                _ => false,
-            },
+            Err(JwtServiceError::JsonWebTokenError(e)) =>
+                matches!(e.kind(), jsonwebtoken::errors::ErrorKind::InvalidAlgorithm),
             _ => false,
         });
     }

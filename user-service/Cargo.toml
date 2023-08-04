@@ -10,7 +10,12 @@ actix-web = "4"
 # Web utils
 jsonwebtoken = "8.3.0"
 serde = { version = "1.0.176", features = ["derive"] }
+serde_json = "1.0.104"
 reqwest = "0.11.18"
+validator = {version = "0.15", features = ["derive"]}
+
+# Password hashing
+argon2 = "0.5.1"
 
 # Database
 sqlx = { version = "0.7.1", features = ["time", "uuid", "postgres", "runtime-tokio"] }

@@ -5,7 +5,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use figment::value::magic::RelativePathBuf;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct Config {
     pub(crate) name: String,
     pub(crate) database_url: String,
@@ -14,9 +14,10 @@ pub(crate) struct Config {
     pub(crate) port: u16,
     pub(crate) ip: IpAddr,
     pub(crate) hostname: String,
-    pub(crate) telemetry: bool
+    pub(crate) telemetry: bool,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl Config {
     pub(crate) fn figment() -> Figment {
         Figment::from(Serialized::defaults(Self::default()))

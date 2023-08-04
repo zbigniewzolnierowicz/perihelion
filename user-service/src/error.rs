@@ -3,11 +3,11 @@ use crate::{
     v1::{LoginError, SignupError},
 };
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
-use derive_more::{Display, Error};
+use derive_more::Display;
 use jsonwebtoken::errors::ErrorKind as JWTErrorKind;
 use serde::{Deserialize, Serialize};
 
-#[derive(Display, Debug, Error)]
+#[derive(Display, Debug)]
 pub(crate) enum AppError {
     LoginError(LoginError),
     SignupError(SignupError),
@@ -44,6 +44,8 @@ impl ResponseError for AppError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             AppError::SignupError(SignupError::AlreadyLoggedIn) => StatusCode::FORBIDDEN,
+            AppError::SignupError(SignupError::AlreadyExists) => StatusCode::CONFLICT,
+            AppError::SignupError(SignupError::ValidationError(_)) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

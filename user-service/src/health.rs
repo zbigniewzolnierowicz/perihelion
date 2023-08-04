@@ -13,11 +13,11 @@ enum Health {
     Bad,
 }
 
-impl Into<String> for Health {
-    fn into(self) -> String {
-        match self {
-            Self::Bad => "unhealthy".to_owned(),
-            Self::Good => "healthy".to_owned(),
+impl From<Health> for String {
+    fn from(value: Health) -> Self {
+        match value {
+            Health::Good => "healthy".to_owned(),
+            Health::Bad => "unhealthy".to_owned(),
         }
     }
 }
@@ -36,14 +36,16 @@ pub(crate) async fn health_check(data: web::Data<AppState>) -> impl Responder {
 
     let count_of_failed = healthchecks.iter().filter(|(_key, value)| **value).count();
 
-    let healthchecks: Vec<(&str, Health)> = healthchecks.iter().map(|(key, value)| {
-        if *value {
-            (*key, Health::Good)
-        } else {
-            (*key, Health::Bad)
-        }
-    }).collect();
-
+    let healthchecks: Vec<(&str, Health)> = healthchecks
+        .iter()
+        .map(|(key, value)| {
+            if *value {
+                (*key, Health::Good)
+            } else {
+                (*key, Health::Bad)
+            }
+        })
+        .collect();
 
     let status = if count_of_failed > 0 {
         StatusCode::SERVICE_UNAVAILABLE
