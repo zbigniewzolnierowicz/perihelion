@@ -30,4 +30,3 @@ pub(crate) async fn logout_all_route(_state: State, _req: HttpRequest) -> impl R
 
     "implement logout all devices"
 }
-

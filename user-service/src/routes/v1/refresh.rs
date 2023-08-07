@@ -1,6 +1,4 @@
-use actix_web::{
-    post, Responder,
-};
+use actix_web::{post, Responder};
 
 #[post("refresh")]
 pub(crate) async fn refresh_route() -> impl Responder {

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 
@@ -6,9 +7,9 @@ pub(crate) mod dto;
 pub(crate) mod error;
 pub(crate) mod health;
 pub(crate) mod jwt;
+pub(crate) mod login_check;
 pub(crate) mod models;
 pub(crate) mod routes;
-pub(crate) mod login_check;
 pub(crate) mod test_utils;
 
 use std::fs;

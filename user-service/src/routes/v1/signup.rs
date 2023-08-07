@@ -7,7 +7,8 @@ use argon2::{
 };
 use validator::Validate;
 
-use crate::{ dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
+use crate::{
+    dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
     login_check::get_logged_in_user_claims, models::user::User, State,
 };
 
@@ -131,9 +132,10 @@ mod tests {
     #![allow(clippy::unwrap_used)]
     #![allow(clippy::expect_used)]
     use actix_web::{http::StatusCode, test};
+    use reqwest::header::AUTHORIZATION;
     use sqlx::PgPool;
 
-    use crate::{create_app, test_utils::get_config};
+    use crate::{create_app, dto::login::LoginResponse, test_utils::get_config};
 
     #[sqlx::test]
     async fn signup_correct(pool: PgPool) {
@@ -242,9 +244,40 @@ mod tests {
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[sqlx::test]
-    fn signup_user_already_logged_in(_pool: PgPool) {
-        // TODO: implement test for already logged in user
-        todo!("implement test for already logged in user")
+    #[sqlx::test(fixtures("users"))]
+    fn signup_user_already_logged_in(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "username": "jimmyjimmyjimmy",
+            "password": "password",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload.clone())
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        let body: LoginResponse = test::read_body_json(result).await;
+        let token = body.access_token;
+
+        let payload = serde_json::json!({
+            "username": "thereisnowayialreadyexist",
+            "email": "jimmy@example.com",
+            "password": "password",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/signup")
+            .set_json(payload)
+            .insert_header((AUTHORIZATION, format!("Bearer {}", token)))
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+
+        assert_eq!(result.status(), StatusCode::FORBIDDEN);
     }
 }

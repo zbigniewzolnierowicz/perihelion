@@ -1,2 +1,2 @@
-pub(crate) mod user;
 pub(crate) mod login;
+pub(crate) mod user;

@@ -1,9 +1,9 @@
 use actix_web::{web, Scope};
 
 mod login;
-mod signup;
 mod logout;
 mod refresh;
+mod signup;
 mod user_info;
 
 pub(crate) fn router(path: &str) -> Scope {
@@ -15,4 +15,3 @@ pub(crate) fn router(path: &str) -> Scope {
         .service(refresh::refresh_route)
         .service(user_info::user_info_route)
 }
-

@@ -1,9 +1,11 @@
 use actix_web::{
-    body::BoxBody, http::StatusCode, post, web, HttpRequest, HttpResponse, ResponseError,
+    body::BoxBody, cookie::Cookie, http::StatusCode, post, web, HttpRequest, HttpResponse,
+    ResponseError,
 };
 
 use argon2::{PasswordHash, PasswordVerifier};
 use derive_more::Display;
+use time::Duration;
 
 use crate::{
     dto::login::{LoginDTO, LoginResponse},
@@ -33,6 +35,7 @@ impl ResponseError for LoginError {
             Self::LoginCheckError(e) => e.status_code(),
             Self::AlreadyLoggedIn => StatusCode::FORBIDDEN,
             Self::UserDoesNotExist => StatusCode::NOT_FOUND,
+            Self::BadPassword => StatusCode::UNAUTHORIZED,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -73,8 +76,7 @@ pub(crate) async fn login_route(
     body: web::Json<LoginDTO>,
     state: State,
     req: HttpRequest,
-) -> Result<web::Json<LoginResponse>, LoginError> {
-    // TODO: Implement login
+) -> Result<HttpResponse, LoginError> {
     let jwt = state.jwt.clone();
     let db = state.db.clone();
     let config = state.config.clone();
@@ -149,21 +151,29 @@ pub(crate) async fn login_route(
 
     // store refresh token in HttpOnly, Secure cookie
 
+    let rt_cookie = Cookie::build("refresh_token", refresh_token)
+        .max_age(Duration::new(config.refresh_token_expiration, 0))
+        .secure(true)
+        .http_only(true)
+        .finish();
+
     tx.commit().await.map_err(LoginError::from)?;
     // return access and refresh tokens
 
-    Ok(web::Json(LoginResponse {
-        access_token: access_token.to_string(),
-    }))
+    Ok(HttpResponse::build(StatusCode::OK)
+        .cookie(rt_cookie)
+        .json(LoginResponse {
+            access_token: access_token.to_string(),
+        }))
 }
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
     #![allow(clippy::expect_used)]
-    use actix_web::http::StatusCode;
     use actix_web::test;
-    use reqwest::header::SET_COOKIE;
+    use actix_web::{cookie::Cookie, http::StatusCode};
+    use reqwest::header::{AUTHORIZATION, SET_COOKIE};
     use sqlx::PgPool;
 
     use super::LoginResponse;
@@ -188,18 +198,130 @@ mod tests {
         let result = test::call_service(&test_service, req).await;
         let status = result.status();
         let headers = result.headers().clone();
-        let body: LoginResponse = test::try_read_body_json(result)
-            .await
-            .expect("Could not read body");
+        let body: LoginResponse = test::read_body_json(result).await;
 
         assert_eq!(status, StatusCode::OK);
         assert!(!body.access_token.is_empty());
-        assert_eq!(headers.get(SET_COOKIE).unwrap(), "ERERE");
+
+        let header_value = headers.get(SET_COOKIE).unwrap().to_str().unwrap();
+
+        let refresh_cookie = Cookie::parse(header_value).unwrap();
+
+        assert_eq!(refresh_cookie.name(), "refresh_token");
+        assert!(refresh_cookie.http_only().unwrap_or(false));
+        assert!(refresh_cookie.secure().unwrap_or(false));
     }
 
-    fn login_already_logged_in() {}
-    fn login_missing_username() {}
-    fn login_missing_password() {}
-    fn login_user_does_not_exist() {}
-    fn login_wrong_password() {}
+    #[sqlx::test(fixtures("users"))]
+    fn login_already_logged_in(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "username": "jimmyjimmyjimmy",
+            "password": "password",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload.clone())
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        let body: LoginResponse = test::read_body_json(result).await;
+        let token = format!("Bearer {}", body.access_token);
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .insert_header((AUTHORIZATION, token))
+            .set_json(payload)
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        let status = result.status();
+        assert_eq!(status, StatusCode::FORBIDDEN);
+    }
+
+    #[sqlx::test(fixtures("users"))]
+    fn login_missing_username(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "password": "password",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload)
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[sqlx::test(fixtures("users"))]
+    fn login_missing_password(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "username": "jimmyjimmyjimmy",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload)
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[sqlx::test(fixtures("users"))]
+    fn login_wrong_password(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "username": "jimmyjimmyjimmy",
+            "password": "BADPASSWORD",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload)
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        let status = result.status();
+
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[sqlx::test]
+    fn login_user_does_not_exist(pool: PgPool) {
+        let config = get_config();
+        let app = create_app(pool, config).unwrap();
+        let test_service = test::init_service(app).await;
+
+        let payload = serde_json::json!({
+            "username": "NOTEXIST",
+            "password": "BADPASSWORD",
+        });
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/login/password")
+            .set_json(payload)
+            .to_request();
+
+        let result = test::call_service(&test_service, req).await;
+        let status = result.status();
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
 }

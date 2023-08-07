@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS credentials (
 );
 
 CREATE TABLE IF NOT EXISTS jwt (
-    jwt_id UUID UNIQUE NOT NULL,
-    user_id UUID UNIQUE NOT NULL,
+    jwt_id UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
     content TEXT NOT NULL,
     expiration TIMESTAMPTZ NOT NULL,
 
@@ -35,8 +35,8 @@ CREATE TABLE IF NOT EXISTS jwt (
 );
 
 CREATE TABLE IF NOT EXISTS refresh (
-    refresh_id UUID UNIQUE NOT NULL,
-    user_id UUID UNIQUE NOT NULL,
+    refresh_id UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
     content TEXT NOT NULL,
     expiration TIMESTAMPTZ NOT NULL,
 

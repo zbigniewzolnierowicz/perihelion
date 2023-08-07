@@ -1,9 +1,13 @@
 use actix_web::{
-    body::BoxBody, get, http::StatusCode, web, HttpRequest, HttpResponse,
-    ResponseError,
+    body::BoxBody, get, http::StatusCode, web, HttpRequest, HttpResponse, ResponseError,
 };
 
-use crate::{error::AppErrorResponse, models::user::User, State, login_check::{LoginCheckError, get_logged_in_user_claims}};
+use crate::{
+    error::AppErrorResponse,
+    login_check::{get_logged_in_user_claims, LoginCheckError},
+    models::user::User,
+    State,
+};
 
 use derive_more::{Display, Error};
 
@@ -46,9 +50,14 @@ impl ResponseError for UserInfoError {
 }
 
 #[get("me")]
-pub(crate) async fn user_info_route(state: State, req: HttpRequest) -> Result<web::Json<User>, UserInfoError> {
+pub(crate) async fn user_info_route(
+    state: State,
+    req: HttpRequest,
+) -> Result<web::Json<User>, UserInfoError> {
     let jwt = state.jwt.clone();
-    let claims = get_logged_in_user_claims(&req, jwt).await.map_err(UserInfoError::from)?;
+    let claims = get_logged_in_user_claims(&req, jwt)
+        .await
+        .map_err(UserInfoError::from)?;
     let db = state.db.clone();
 
     let result = sqlx::query_as!(
