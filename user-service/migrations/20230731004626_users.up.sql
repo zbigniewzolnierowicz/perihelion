@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS jwt (
     jwt_id UUID UNIQUE NOT NULL,
     user_id UUID UNIQUE NOT NULL,
     content TEXT NOT NULL,
-    expiration TIMESTAMP NOT NULL,
+    expiration TIMESTAMPTZ NOT NULL,
 
     PRIMARY KEY (jwt_id, user_id),
     CONSTRAINT
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS refresh (
     refresh_id UUID UNIQUE NOT NULL,
     user_id UUID UNIQUE NOT NULL,
     content TEXT NOT NULL,
-    expiration TIMESTAMP NOT NULL,
+    expiration TIMESTAMPTZ NOT NULL,
 
     PRIMARY KEY (refresh_id, user_id),
     CONSTRAINT

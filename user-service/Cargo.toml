@@ -42,3 +42,5 @@ tracing-actix-web = { version = "0.7.5", features = ["opentelemetry_0_19"] }
 # Misc
 derive_more = "0.99.17"
 lazy_static = "1.4.0"
+strum = { version = "0.25", features = ["derive"] }
+strum_macros = "0.25"

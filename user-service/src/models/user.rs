@@ -16,7 +16,7 @@ pub(crate) struct Credential {
     pub credential_content: String,
 }
 
-#[derive(sqlx::FromRow, Serialize)]
+#[derive(sqlx::FromRow, Serialize, Clone)]
 pub(crate) struct User {
     pub id: Uuid,
     pub username: String,

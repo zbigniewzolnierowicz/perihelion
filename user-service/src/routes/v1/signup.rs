@@ -7,7 +7,10 @@ use argon2::{
 };
 use validator::Validate;
 
-use crate::{dto::user::CreateUserPasswordDTO, error::AppErrorResponse, models::user::User, State, login_check::get_logged_in_user_claims};
+use crate::{
+    dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
+    login_check::get_logged_in_user_claims, models::user::User, State,
+};
 
 use derive_more::Display;
 
@@ -76,7 +79,7 @@ pub(crate) async fn signup_route(
     let db = state.db.clone();
 
     if get_logged_in_user_claims(&req, jwt).await.is_ok() {
-        return Err(SignupError::AlreadyLoggedIn.into());
+        return Err(SignupError::AlreadyLoggedIn);
     };
 
     body.validate().map_err(SignupError::from)?;
@@ -129,15 +132,7 @@ mod tests {
     use actix_web::{http::StatusCode, test};
     use sqlx::PgPool;
 
-    use crate::{config::Config, create_app};
-
-    fn get_config() -> Config {
-        Config {
-            private_key_path: "test/private.pem".into(),
-            public_key_path: "test/public.pem".into(),
-            ..Default::default()
-        }
-    }
+    use crate::{create_app, test_utils::get_config};
 
     #[sqlx::test]
     async fn signup_correct(pool: PgPool) {
@@ -160,7 +155,7 @@ mod tests {
         assert_eq!(result.status(), StatusCode::CREATED);
     }
 
-    #[sqlx::test(fixtures("already-exists-user"))]
+    #[sqlx::test(fixtures("users"))]
     fn signup_user_already_exists_username(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
@@ -181,7 +176,7 @@ mod tests {
         assert_eq!(result.status(), StatusCode::CONFLICT);
     }
 
-    #[sqlx::test(fixtures("already-exists-user"))]
+    #[sqlx::test(fixtures("users"))]
     fn signup_user_already_exists_email(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();

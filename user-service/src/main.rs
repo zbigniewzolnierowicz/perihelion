@@ -1,4 +1,6 @@
 #![allow(dead_code)] // TODO: Remove this after implementing login
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
 
 pub(crate) mod config;
 pub(crate) mod dto;
@@ -8,6 +10,7 @@ pub(crate) mod jwt;
 pub(crate) mod models;
 pub(crate) mod routes;
 pub(crate) mod login_check;
+pub(crate) mod test_utils;
 
 use std::fs;
 
@@ -44,6 +47,7 @@ async fn ping() -> impl Responder {
 pub(crate) struct AppState {
     pub(crate) jwt: JwtService,
     pub(crate) db: Pool<Postgres>,
+    pub(crate) config: Config,
 }
 
 pub(crate) type State = Data<AppState>;
@@ -125,7 +129,7 @@ pub(crate) fn create_app(
         "Initializing server"
     );
 
-    let data = Data::new(AppState { jwt, db });
+    let data = Data::new(AppState { jwt, db, config });
     Ok(App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())

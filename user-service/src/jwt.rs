@@ -3,7 +3,11 @@ use jsonwebtoken::{
     errors::Error as JwtError, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
 };
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumString;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
+
+use crate::{models::user::User, config::Config};
 
 #[derive(Clone)]
 pub(crate) struct JwtService {
@@ -18,6 +22,44 @@ pub(crate) struct Claims {
     pub(crate) sub: Uuid,
     pub(crate) iat: i64,
     pub(crate) iss: String,
+    pub(crate) token_type: TokenType,
+}
+
+#[derive(Serialize, Deserialize, EnumString, PartialEq, Debug)]
+pub(crate) enum TokenType {
+    AccessToken,
+    RefreshToken,
+}
+
+impl Claims {
+    pub(crate) fn new(
+        duration: Duration,
+        issuer: &str,
+        subject: User,
+        token_type: TokenType,
+    ) -> (Self, OffsetDateTime) {
+        let now = OffsetDateTime::now_utc();
+        let exp = now + duration;
+        (Self {
+            exp: (now + duration).unix_timestamp(),
+            sub: subject.id,
+            iat: now.unix_timestamp(),
+            iss: issuer.to_owned(),
+            token_type,
+        }, exp)
+    }
+
+    pub(crate) fn new_access_token(config: &Config, subject: User) -> (Self, OffsetDateTime) {
+        let duration = Duration::new(config.access_token_expiration, 0);
+
+        Self::new(duration, &config.hostname, subject, TokenType::AccessToken)
+    }
+
+    pub(crate) fn new_refresh_token(config: &Config, subject: User) -> (Self, OffsetDateTime) {
+        let duration = Duration::new(config.refresh_token_expiration, 0);
+
+        Self::new(duration, &config.hostname, subject, TokenType::AccessToken)
+    }
 }
 
 #[derive(Debug, Display, Error)]
@@ -66,7 +108,7 @@ mod test {
     use jsonwebtoken::{EncodingKey, TokenData};
     use uuid::Uuid;
 
-    use crate::jwt::JwtServiceError;
+    use crate::jwt::{JwtServiceError, TokenType};
 
     use super::{Claims, JwtService};
 
@@ -90,6 +132,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         let result = service.encode(claims).unwrap();
@@ -109,6 +152,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -121,6 +165,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         assert_eq!(claims, test_against_claims)
@@ -148,6 +193,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -169,6 +215,7 @@ mod test {
             iss: "BADISSUERREALLYBADNOREALLY".to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -189,6 +236,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
+            token_type: TokenType::AccessToken
         };
 
         let token = jsonwebtoken::encode(

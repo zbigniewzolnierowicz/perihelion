@@ -11,8 +11,12 @@ services:
       POSTGRES_DB: perihelion-user
     volumes:
       - db:/var/lib/postgres/data
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - 6831:6831
+      - 6832:6832
+      - 16686:16686
 
 volumes:
   db:
-  nodes:
-  shards:
