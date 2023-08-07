@@ -7,7 +7,7 @@ use strum_macros::EnumString;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::{models::user::User, config::Config};
+use crate::{config::Config, models::user::User};
 
 #[derive(Clone)]
 pub(crate) struct JwtService {
@@ -40,13 +40,16 @@ impl Claims {
     ) -> (Self, OffsetDateTime) {
         let now = OffsetDateTime::now_utc();
         let exp = now + duration;
-        (Self {
-            exp: (now + duration).unix_timestamp(),
-            sub: subject.id,
-            iat: now.unix_timestamp(),
-            iss: issuer.to_owned(),
-            token_type,
-        }, exp)
+        (
+            Self {
+                exp: (now + duration).unix_timestamp(),
+                sub: subject.id,
+                iat: now.unix_timestamp(),
+                iss: issuer.to_owned(),
+                token_type,
+            },
+            exp,
+        )
     }
 
     pub(crate) fn new_access_token(config: &Config, subject: User) -> (Self, OffsetDateTime) {
@@ -74,17 +77,21 @@ impl From<JwtError> for JwtServiceError {
 }
 
 impl JwtService {
-    pub(crate) fn new(issuer: &str, jwt_private_key: Vec<u8>, jwt_public_key: Vec<u8>) -> Self {
+    pub(crate) fn new(
+        issuer: &str,
+        jwt_private_key: Vec<u8>,
+        jwt_public_key: Vec<u8>,
+    ) -> Result<Self, JwtServiceError> {
         let mut validation = Validation::new(Algorithm::RS256);
         validation.set_issuer(&[issuer]);
 
-        JwtService {
+        Ok(JwtService {
             decode_key: DecodingKey::from_rsa_pem(jwt_public_key.as_slice())
-                .expect("could not load public key"),
+                .map_err(JwtServiceError::from)?,
             encode_key: EncodingKey::from_rsa_pem(jwt_private_key.as_slice())
-                .expect("could not load private key"),
+                .map_err(JwtServiceError::from)?,
             validation,
-        }
+        })
     }
 
     pub fn decode(self, token: &str) -> Result<TokenData<Claims>, JwtServiceError> {
@@ -103,6 +110,8 @@ impl JwtService {
 
 #[cfg(test)]
 mod test {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used)]
     use std::fs;
 
     use jsonwebtoken::{EncodingKey, TokenData};
@@ -119,7 +128,7 @@ mod test {
         let jwt_private_key = fs::read("./test/private.pem").unwrap();
         let jwt_public_key = fs::read("./test/public.pem").unwrap();
 
-        JwtService::new(ISSUER, jwt_private_key, jwt_public_key)
+        JwtService::new(ISSUER, jwt_private_key, jwt_public_key).unwrap()
     }
 
     #[test]
@@ -132,7 +141,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         let result = service.encode(claims).unwrap();
@@ -152,7 +161,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -165,7 +174,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         assert_eq!(claims, test_against_claims)
@@ -193,7 +202,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -215,7 +224,7 @@ mod test {
             iss: "BADISSUERREALLYBADNOREALLY".to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         let token = service.clone().encode(claims).unwrap();
@@ -236,7 +245,7 @@ mod test {
             iss: ISSUER.to_owned(),
             exp: (now + duration).unix_timestamp(),
             sub: SUB,
-            token_type: TokenType::AccessToken
+            token_type: TokenType::AccessToken,
         };
 
         let token = jsonwebtoken::encode(

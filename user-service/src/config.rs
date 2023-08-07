@@ -1,7 +1,6 @@
 use figment::providers::{Env, Serialized};
 use figment::Figment;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::OnceLock;
 
 use figment::value::magic::RelativePathBuf;
 use serde::{Deserialize, Serialize};
@@ -50,13 +49,5 @@ impl Default for Config {
             access_token_expiration,
             refresh_token_expiration,
         }
-    }
-}
-
-static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
-
-impl Config {
-    fn init_global(config: Self) {
-        GLOBAL_CONFIG.set(config).expect("Could not initialize global config")
     }
 }

@@ -7,8 +7,7 @@ use argon2::{
 };
 use validator::Validate;
 
-use crate::{
-    dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
+use crate::{ dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
     login_check::get_logged_in_user_claims, models::user::User, State,
 };
 
@@ -129,6 +128,8 @@ pub(crate) async fn signup_route(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used)]
     use actix_web::{http::StatusCode, test};
     use sqlx::PgPool;
 

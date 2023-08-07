@@ -4,14 +4,13 @@ use actix_web::{
 
 use argon2::{PasswordHash, PasswordVerifier};
 use derive_more::Display;
-use time::PrimitiveDateTime;
 
 use crate::{
     dto::login::{LoginDTO, LoginResponse},
     jwt::{Claims, JwtServiceError},
     login_check::{get_logged_in_user_claims, LoginCheckError},
     models::user::{Credential, CredentialType, User},
-    State, config::Config,
+    State,
 };
 
 #[derive(Debug, Display)]
@@ -116,7 +115,7 @@ pub(crate) async fn login_route(
     };
 
     // generate access token JWT
-    
+
     let (claims_at, expiration_at) = Claims::new_access_token(&config, user.clone());
     let access_token = jwt.clone().encode(claims_at).map_err(LoginError::from)?;
 
@@ -127,16 +126,26 @@ pub(crate) async fn login_route(
     let mut tx = db.begin().await.map_err(LoginError::from)?;
 
     // store access token in database
-    sqlx::query!("INSERT INTO jwt (user_id, content, expiration) VALUES ($1, $2, $3)", &user.id, access_token, expiration_at)
-        .execute(&mut *tx)
-        .await
-        .map_err(LoginError::from)?;
-    
+    sqlx::query!(
+        "INSERT INTO jwt (user_id, content, expiration) VALUES ($1, $2, $3)",
+        &user.id,
+        access_token,
+        expiration_at
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(LoginError::from)?;
+
     // store refresh token in database
-    sqlx::query!("INSERT INTO refresh (user_id, content, expiration) VALUES ($1, $2, $3)", &user.id, refresh_token, expiration_rt)
-        .execute(&mut *tx)
-        .await
-        .map_err(LoginError::from)?;
+    sqlx::query!(
+        "INSERT INTO refresh (user_id, content, expiration) VALUES ($1, $2, $3)",
+        &user.id,
+        refresh_token,
+        expiration_rt
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(LoginError::from)?;
 
     // store refresh token in HttpOnly, Secure cookie
 
@@ -150,6 +159,8 @@ pub(crate) async fn login_route(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used)]
     use actix_web::http::StatusCode;
     use actix_web::test;
     use reqwest::header::SET_COOKIE;

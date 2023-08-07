@@ -1,4 +1,3 @@
-#![allow(dead_code)] // TODO: Remove this after implementing login
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 
@@ -51,14 +50,14 @@ pub(crate) struct AppState {
 }
 
 pub(crate) type State = Data<AppState>;
-fn init_telemetry(app_name: &str) {
+
+fn init_telemetry(app_name: &str) -> color_eyre::Result<()> {
     // Start a new Jaeger trace pipeline.
     // Spans are exported in batch - recommended setup for a production application.
     global::set_text_map_propagator(TraceContextPropagator::new());
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name(app_name)
-        .install_batch(TokioCurrentThread)
-        .expect("Failed to install OpenTelemetry tracer.");
+        .install_batch(TokioCurrentThread)?;
 
     // Filter based on level - trace, debug, info, warn, error
     // Tunable via `RUST_LOG` env variable
@@ -76,8 +75,9 @@ fn init_telemetry(app_name: &str) {
         .with(telemetry)
         .with(JsonStorageLayer)
         .with(formatting_layer);
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to install `tracing` subscriber.")
+
+    tracing::subscriber::set_global_default(subscriber)?;
+    Ok(())
 }
 
 #[actix_web::main]
@@ -88,7 +88,7 @@ async fn main() -> color_eyre::Result<()> {
     let config: Config = Config::figment().extract()?;
 
     if config.telemetry {
-        init_telemetry(&config.name)
+        init_telemetry(&config.name)?;
     };
 
     let db = PgPoolOptions::new()
@@ -98,6 +98,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let Config { ip, port, .. } = config;
 
+    #[allow(clippy::expect_used)]
     HttpServer::new(move || create_app(db.clone(), config.clone()).expect("Creating an app failed"))
         .bind((ip, port))?
         .run()
@@ -121,7 +122,7 @@ pub(crate) fn create_app(
 > {
     let jwt_private_key = fs::read(config.private_key_path.relative())?;
     let jwt_public_key = fs::read(config.public_key_path.relative())?;
-    let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key);
+    let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key)?;
 
     info!(
         address = config.ip.to_string(),
