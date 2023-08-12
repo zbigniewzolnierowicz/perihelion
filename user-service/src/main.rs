@@ -47,7 +47,6 @@ async fn ping() -> impl Responder {
 pub(crate) struct AppState {
     pub(crate) jwt: JwtService,
     pub(crate) db: Pool<Postgres>,
-    pub(crate) config: Config,
 }
 
 pub(crate) type State = Data<AppState>;
@@ -122,9 +121,9 @@ pub(crate) fn create_app(
         >,
     >,
 > {
-    let config = Config::global().clone();
-    let jwt_private_key = fs::read(&config.private_key_path.relative())?;
-    let jwt_public_key = fs::read(&config.public_key_path.relative())?;
+    let config = Config::global();
+    let jwt_private_key = fs::read(config.private_key_path.relative())?;
+    let jwt_public_key = fs::read(config.public_key_path.relative())?;
     let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key)?;
 
     info!(
@@ -133,7 +132,7 @@ pub(crate) fn create_app(
         "Initializing server"
     );
 
-    let data = Data::new(AppState { jwt, db, config });
+    let data = Data::new(AppState { jwt, db });
     Ok(App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())

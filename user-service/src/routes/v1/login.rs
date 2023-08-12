@@ -4,15 +4,14 @@ use actix_web::{
 };
 
 use argon2::{PasswordHash, PasswordVerifier};
-use derive_more::Display;
-use time::Duration;
+use derive_more::Display; use time::Duration;
 
 use crate::{
     dto::login::{LoginDTO, LoginResponse},
     jwt::{Claims, JwtServiceError},
     login_check::{get_logged_in_user_claims, LoginCheckError},
     models::user::{Credential, CredentialType, User},
-    State,
+    State, config::Config,
 };
 
 #[derive(Debug, Display)]
@@ -79,7 +78,7 @@ pub(crate) async fn login_route(
 ) -> Result<HttpResponse, LoginError> {
     let jwt = state.jwt.clone();
     let db = state.db.clone();
-    let config = state.config.clone();
+    let config = Config::global();
     let argon = argon2::Argon2::default();
 
     if get_logged_in_user_claims(&req, jwt.clone()).await.is_ok() {
