@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn signup_user_already_exists_username(pool: PgPool) {
+    async fn signup_user_already_exists_username(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = actix_web::test::init_service(app).await;
@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn signup_user_already_exists_email(pool: PgPool) {
+    async fn signup_user_already_exists_email(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = actix_web::test::init_service(app).await;
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn signup_user_invalid_email(pool: PgPool) {
+    async fn signup_user_invalid_email(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = actix_web::test::init_service(app).await;
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn signup_user_invalid_username(pool: PgPool) {
+    async fn signup_user_invalid_username(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = actix_web::test::init_service(app).await;
@@ -245,7 +245,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn signup_user_already_logged_in(pool: PgPool) {
+    async fn signup_user_already_logged_in(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;

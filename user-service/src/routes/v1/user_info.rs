@@ -73,3 +73,14 @@ pub(crate) async fn user_info_route(
 
     Ok(web::Json(result))
 }
+
+#[cfg(test)]
+mod test {
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn user_info_success(_pool: PgPool) {}
+
+    #[sqlx::test]
+    async fn user_info_user_not_logged_in(_pool: PgPool) {}
+}

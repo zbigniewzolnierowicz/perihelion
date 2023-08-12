@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn login_already_logged_in(pool: PgPool) {
+    async fn login_already_logged_in(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;
@@ -244,7 +244,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn login_missing_username(pool: PgPool) {
+    async fn login_missing_username(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn login_missing_password(pool: PgPool) {
+    async fn login_missing_password(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;
@@ -282,7 +282,7 @@ mod tests {
     }
 
     #[sqlx::test(fixtures("users"))]
-    fn login_wrong_password(pool: PgPool) {
+    async fn login_wrong_password(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;
@@ -304,7 +304,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn login_user_does_not_exist(pool: PgPool) {
+    async fn login_user_does_not_exist(pool: PgPool) {
         let config = get_config();
         let app = create_app(pool, config).unwrap();
         let test_service = test::init_service(app).await;
