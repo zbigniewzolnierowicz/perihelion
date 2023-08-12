@@ -182,7 +182,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn login_correct(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -215,7 +216,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn login_already_logged_in(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -246,7 +248,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn login_missing_username(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -265,7 +268,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn login_missing_password(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -284,7 +288,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn login_wrong_password(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -306,7 +311,8 @@ mod tests {
     #[sqlx::test]
     async fn login_user_does_not_exist(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({

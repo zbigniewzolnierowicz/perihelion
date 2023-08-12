@@ -99,8 +99,10 @@ async fn main() -> color_eyre::Result<()> {
 
     let Config { ip, port, .. } = config;
 
+    config.init_global();
+
     #[allow(clippy::expect_used)]
-    HttpServer::new(move || create_app(db.clone(), config.clone()).expect("Creating an app failed"))
+    HttpServer::new(move || create_app(db.clone()).expect("Creating an app failed"))
         .bind((ip, port))?
         .run()
         .await
@@ -109,7 +111,6 @@ async fn main() -> color_eyre::Result<()> {
 
 pub(crate) fn create_app(
     db: Pool<Postgres>,
-    config: Config,
 ) -> color_eyre::Result<
     App<
         impl ServiceFactory<
@@ -121,8 +122,9 @@ pub(crate) fn create_app(
         >,
     >,
 > {
-    let jwt_private_key = fs::read(config.private_key_path.relative())?;
-    let jwt_public_key = fs::read(config.public_key_path.relative())?;
+    let config = Config::global().clone();
+    let jwt_private_key = fs::read(&config.private_key_path.relative())?;
+    let jwt_public_key = fs::read(&config.public_key_path.relative())?;
     let jwt = JwtService::new(&config.hostname, jwt_private_key, jwt_public_key)?;
 
     info!(

@@ -140,7 +140,8 @@ mod tests {
     #[sqlx::test]
     async fn signup_correct(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = actix_web::test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -161,7 +162,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn signup_user_already_exists_username(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = actix_web::test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -182,7 +184,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn signup_user_already_exists_email(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = actix_web::test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -203,7 +206,8 @@ mod tests {
     #[sqlx::test]
     async fn signup_user_invalid_email(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = actix_web::test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -225,9 +229,9 @@ mod tests {
     #[sqlx::test]
     async fn signup_user_invalid_username(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = actix_web::test::init_service(app).await;
-
         let payload = serde_json::json!({
             "username": "x",
             "email": "example@example.com",
@@ -247,7 +251,8 @@ mod tests {
     #[sqlx::test(fixtures("users"))]
     async fn signup_user_already_logged_in(pool: PgPool) {
         let config = get_config();
-        let app = create_app(pool, config).unwrap();
+        config.init_global();
+        let app = create_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({

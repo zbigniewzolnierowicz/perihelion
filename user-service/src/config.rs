@@ -1,6 +1,7 @@
 use figment::providers::{Env, Serialized};
 use figment::Figment;
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::OnceLock;
 
 use figment::value::magic::RelativePathBuf;
 use serde::{Deserialize, Serialize};
@@ -49,5 +50,20 @@ impl Default for Config {
             access_token_expiration,
             refresh_token_expiration,
         }
+    }
+}
+
+static CONFIG_CELL: OnceLock<Config> = OnceLock::new();
+
+impl Config {
+    pub(crate) fn init_global(self) {
+        let _ = CONFIG_CELL.set(self);
+    }
+
+    #[allow(clippy::expect_used)]
+    pub(crate) fn global() -> &'static Self {
+        CONFIG_CELL
+            .get()
+            .expect("Config is not loaded yet somehow.")
     }
 }
