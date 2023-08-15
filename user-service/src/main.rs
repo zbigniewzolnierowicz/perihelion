@@ -39,6 +39,8 @@ use crate::jwt::JwtService;
 use crate::routes::v1;
 
 pub(crate) const PONG: &str = "pong!";
+pub(crate) const ACCESS_TOKEN_BLACKLIST_KEY: &str = "access_token:blacklist";
+pub(crate) const REFRESH_TOKEN_BLACKLIST_KEY: &str = "refresh_token:blacklist";
 
 #[get("/ping")]
 async fn ping() -> impl Responder {

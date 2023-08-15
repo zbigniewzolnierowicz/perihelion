@@ -7,7 +7,7 @@ use actix_web::{
 
 use crate::{
     error::AppErrorResponse,
-    jwt::{Claims, JwtService, JwtServiceError},
+    jwt::{Claims, JwtService, JwtServiceError}, ACCESS_TOKEN_BLACKLIST_KEY,
 };
 
 use derive_more::{Display, Error};
@@ -21,6 +21,8 @@ pub(crate) enum LoginCheckError {
     AuthHeaderDecodeError(ToStrError),
     JwtServiceError(JwtServiceError),
     NoBearer,
+    RedisError(redis::RedisError),
+    BlacklistedToken,
 }
 
 impl From<ToStrError> for LoginCheckError {
@@ -35,10 +37,17 @@ impl From<JwtServiceError> for LoginCheckError {
     }
 }
 
+impl From<redis::RedisError> for LoginCheckError {
+    fn from(value: redis::RedisError) -> Self {
+        Self::RedisError(value)
+    }
+}
+
 impl ResponseError for LoginCheckError {
     fn status_code(&self) -> StatusCode {
         match self {
             LoginCheckError::NoAuthHeader => StatusCode::UNAUTHORIZED,
+            LoginCheckError::BlacklistedToken => StatusCode::FORBIDDEN,
             LoginCheckError::JwtServiceError(JwtServiceError::JsonWebTokenError(e)) => {
                 match e.kind() {
                     JWTErrorKind::InvalidToken
@@ -61,10 +70,12 @@ impl ResponseError for LoginCheckError {
 }
 
 static BEARER: &str = "Bearer ";
+use redis::Commands;
 
 pub(crate) async fn get_logged_in_user_claims(
     req: &HttpRequest,
     jwt: JwtService,
+    rclient: redis::Client,
 ) -> Result<Claims, LoginCheckError> {
     // check if Authentication header has bearer token
     // if yes, error out, because the user isn't logged in
@@ -74,6 +85,7 @@ pub(crate) async fn get_logged_in_user_claims(
         .ok_or(LoginCheckError::NoAuthHeader)?
         .to_str()?
         .to_string();
+    let mut redis_conn = rclient.get_connection()?;
 
     if !token.starts_with(BEARER) {
         return Err(LoginCheckError::NoBearer);
@@ -86,8 +98,13 @@ pub(crate) async fn get_logged_in_user_claims(
 
     let decoded = jwt.decode(token)?;
 
-    // TODO: Implement blacklist checking
     // check if access token is on blacklist
+    let access_token_is_in_blacklist: bool = redis_conn.sismember(ACCESS_TOKEN_BLACKLIST_KEY, token)?;
+
+    if access_token_is_in_blacklist {
+        return Err(LoginCheckError::BlacklistedToken)
+    };
+
     // if it is, error out
 
     Ok(decoded.claims)

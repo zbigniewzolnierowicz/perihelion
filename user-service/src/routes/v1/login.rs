@@ -80,10 +80,11 @@ pub(crate) async fn login_route(
 ) -> Result<HttpResponse, LoginError> {
     let jwt = state.jwt.clone();
     let db = state.db.clone();
+    let redis_client = state.redis.clone();
     let config = Config::global();
     let argon = argon2::Argon2::default();
 
-    if get_logged_in_user_claims(&req, jwt.clone()).await.is_ok() {
+    if get_logged_in_user_claims(&req, jwt.clone(), redis_client).await.is_ok() {
         return Err(LoginError::AlreadyLoggedIn);
     };
 

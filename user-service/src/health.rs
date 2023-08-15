@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use eyre::eyre;
+
 use actix_web::{get, http::StatusCode, web, HttpResponse, Responder, Scope};
 use serde::Serialize;
 use sqlx::{Pool, Postgres};
@@ -29,14 +31,26 @@ async fn database_health_check(pool: &Pool<Postgres>) -> color_eyre::Result<()> 
     Ok(())
 }
 
+#[instrument]
+async fn redis_health_check(redis: &redis::Client) -> color_eyre::Result<()> {
+    let mut conn = redis.get_connection()?;
+    let result: String = redis::cmd("PING").query(&mut conn)?;
+    if result != "PONG" {
+        return Err(eyre!("Could not connect to Redis"));
+    };
+
+    Ok(())
+}
+
 #[get("")]
 pub(crate) async fn health_check(data: web::Data<AppState>) -> impl Responder {
     let mut healthchecks: HashMap<&str, bool> = HashMap::new();
     healthchecks.insert("database", database_health_check(&data.db).await.is_ok());
+    healthchecks.insert("redis", redis_health_check(&data.redis).await.is_ok());
 
     let count_of_failed = healthchecks.iter().filter(|(_key, value)| **value).count();
 
-    let healthchecks: Vec<(&str, Health)> = healthchecks
+    let healthchecks: HashMap<&str, Health> = healthchecks
         .iter()
         .map(|(key, value)| {
             if *value {
