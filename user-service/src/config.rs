@@ -18,14 +18,13 @@ pub(crate) struct Config {
     pub(crate) telemetry: bool,
     pub(crate) access_token_expiration: i64,
     pub(crate) refresh_token_expiration: i64,
+    pub(crate) redis_url: String,
 }
 
 #[cfg(not(tarpaulin_include))]
 impl Config {
     pub(crate) fn figment() -> Figment {
-        Figment::from(Serialized::defaults(Self::default()))
-            .merge(Env::prefixed("USER_"))
-            .merge(Env::raw().only(&["DATABASE_URL"]))
+        Figment::from(Serialized::defaults(Self::default())).merge(Env::prefixed("USER_"))
     }
 }
 
@@ -41,7 +40,8 @@ impl Default for Config {
         Config {
             name: "user-service".to_owned(),
             hostname: "user-service.perihelion.local".to_owned(),
-            database_url: "".to_owned(),
+            database_url: "postgres://perihelion:perihelion@localhost/perihelion-user".to_owned(),
+            redis_url: "redis://127.0.0.1".to_owned(),
             private_key_path: "./private.pem".into(),
             public_key_path: "./public.pem".into(),
             port: 8999,

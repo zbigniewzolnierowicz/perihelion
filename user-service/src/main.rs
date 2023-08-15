@@ -24,8 +24,9 @@ use dotenvy::dotenv;
 use opentelemetry::global;
 use opentelemetry::runtime::TokioCurrentThread;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use redis::Client as RedisClient;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres};
+use sqlx::PgPool;
 use tracing::info;
 use tracing_actix_web::TracingLogger;
 
@@ -46,7 +47,8 @@ async fn ping() -> impl Responder {
 
 pub(crate) struct AppState {
     pub(crate) jwt: JwtService,
-    pub(crate) db: Pool<Postgres>,
+    pub(crate) db: PgPool,
+    pub(crate) redis: RedisClient,
 }
 
 pub(crate) type State = Data<AppState>;
@@ -96,12 +98,14 @@ async fn main() -> color_eyre::Result<()> {
         .connect(&config.database_url)
         .await?;
 
+    let redis = RedisClient::open(config.redis_url.clone())?;
+
     let Config { ip, port, .. } = config;
 
     config.init_global();
 
     #[allow(clippy::expect_used)]
-    HttpServer::new(move || create_app(db.clone()).expect("Creating an app failed"))
+    HttpServer::new(move || create_app(db.clone(), redis.clone()).expect("Creating an app failed"))
         .bind((ip, port))?
         .run()
         .await
@@ -109,7 +113,8 @@ async fn main() -> color_eyre::Result<()> {
 }
 
 pub(crate) fn create_app(
-    db: Pool<Postgres>,
+    db: PgPool,
+    redis: RedisClient,
 ) -> color_eyre::Result<
     App<
         impl ServiceFactory<
@@ -132,7 +137,7 @@ pub(crate) fn create_app(
         "Initializing server"
     );
 
-    let data = Data::new(AppState { jwt, db });
+    let data = Data::new(AppState { jwt, db, redis });
     Ok(App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())

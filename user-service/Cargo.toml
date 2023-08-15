@@ -22,6 +22,9 @@ sqlx = { version = "0.7.1", features = ["time", "uuid", "postgres", "runtime-tok
 time = { version = "0.3.23", features = ["serde-human-readable"] }
 uuid = { version = "1.4.1", features = ["v4", "serde"] }
 
+# Redis
+redis = "0.23.2"
+
 # Config
 figment = { version = "0.10.10", features = ["env", "toml"] }
 dotenvy = "0.15.7"

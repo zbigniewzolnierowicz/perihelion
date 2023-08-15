@@ -4,14 +4,16 @@ use actix_web::{
 };
 
 use argon2::{PasswordHash, PasswordVerifier};
-use derive_more::Display; use time::Duration;
+use derive_more::Display;
+use time::Duration;
 
 use crate::{
+    config::Config,
     dto::login::{LoginDTO, LoginResponse},
     jwt::{Claims, JwtServiceError},
     login_check::{get_logged_in_user_claims, LoginCheckError},
     models::user::{Credential, CredentialType, User},
-    State, config::Config,
+    State,
 };
 
 #[derive(Debug, Display)]
@@ -117,11 +119,11 @@ pub(crate) async fn login_route(
 
     // generate access token JWT
 
-    let (claims_at, expiration_at) = Claims::new_access_token(&config, user.clone());
+    let (claims_at, expiration_at) = Claims::new_access_token(config, user.clone());
     let access_token = jwt.clone().encode(claims_at).map_err(LoginError::from)?;
 
     // generate refresh token
-    let (claims_rt, expiration_rt) = Claims::new_refresh_token(&config, user.clone());
+    let (claims_rt, expiration_rt) = Claims::new_refresh_token(config, user.clone());
     let refresh_token = jwt.encode(claims_rt).map_err(LoginError::from)?;
 
     let mut tx = db.begin().await.map_err(LoginError::from)?;
@@ -176,13 +178,11 @@ mod tests {
     use sqlx::PgPool;
 
     use super::LoginResponse;
-    use crate::{create_app, test_utils::get_config};
+    use crate::test_utils::create_test_app;
 
     #[sqlx::test(fixtures("users"))]
     async fn login_correct(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -214,9 +214,7 @@ mod tests {
 
     #[sqlx::test(fixtures("users"))]
     async fn login_already_logged_in(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -246,9 +244,7 @@ mod tests {
 
     #[sqlx::test(fixtures("users"))]
     async fn login_missing_username(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -266,9 +262,7 @@ mod tests {
 
     #[sqlx::test(fixtures("users"))]
     async fn login_missing_password(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -286,9 +280,7 @@ mod tests {
 
     #[sqlx::test(fixtures("users"))]
     async fn login_wrong_password(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
@@ -309,9 +301,7 @@ mod tests {
 
     #[sqlx::test]
     async fn login_user_does_not_exist(pool: PgPool) {
-        let config = get_config();
-        config.init_global();
-        let app = create_app(pool).unwrap();
+        let app = create_test_app(pool).unwrap();
         let test_service = test::init_service(app).await;
 
         let payload = serde_json::json!({
