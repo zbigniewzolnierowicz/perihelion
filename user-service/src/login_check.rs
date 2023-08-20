@@ -4,10 +4,12 @@ use actix_web::{
     http::StatusCode,
     HttpRequest, HttpResponse, ResponseError,
 };
+use redis::Commands;
 
 use crate::{
     error::AppErrorResponse,
-    jwt::{Claims, JwtService, JwtServiceError}, ACCESS_TOKEN_BLACKLIST_KEY,
+    jwt::{Claims, JwtService, JwtServiceError},
+    ACCESS_TOKEN_BLACKLIST_KEY,
 };
 
 use derive_more::{Display, Error};
@@ -70,13 +72,12 @@ impl ResponseError for LoginCheckError {
 }
 
 static BEARER: &str = "Bearer ";
-use redis::Commands;
 
 pub(crate) async fn get_logged_in_user_claims(
     req: &HttpRequest,
     jwt: JwtService,
     rclient: redis::Client,
-) -> Result<Claims, LoginCheckError> {
+) -> Result<(String, Claims), LoginCheckError> {
     // check if Authentication header has bearer token
     // if yes, error out, because the user isn't logged in
     let token = req
@@ -99,13 +100,14 @@ pub(crate) async fn get_logged_in_user_claims(
     let decoded = jwt.decode(token)?;
 
     // check if access token is on blacklist
-    let access_token_is_in_blacklist: bool = redis_conn.sismember(ACCESS_TOKEN_BLACKLIST_KEY, token)?;
+    let access_token_is_in_blacklist: bool =
+        redis_conn.sismember(ACCESS_TOKEN_BLACKLIST_KEY, token)?;
 
     if access_token_is_in_blacklist {
-        return Err(LoginCheckError::BlacklistedToken)
+        return Err(LoginCheckError::BlacklistedToken);
     };
 
     // if it is, error out
 
-    Ok(decoded.claims)
+    Ok((token.to_string(), decoded.claims))
 }

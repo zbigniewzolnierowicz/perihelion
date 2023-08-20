@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used)]
+#![cfg(test)]
 
 use crate::{config::Config, create_app};
 
