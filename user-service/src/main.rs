@@ -13,6 +13,7 @@ pub(crate) mod routes;
 pub(crate) mod test_utils;
 
 use std::fs;
+use std::sync::Mutex;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
@@ -37,6 +38,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 use crate::config::Config;
 use crate::jwt::JwtService;
 use crate::routes::v1;
+use crate::routes::v1::services::{BlacklistService, RedisBlacklistService};
 
 pub(crate) const PONG: &str = "pong!";
 pub(crate) const ACCESS_TOKEN_BLACKLIST_KEY: &str = "access_token:blacklist";
@@ -51,6 +53,7 @@ pub(crate) struct AppState {
     pub(crate) jwt: JwtService,
     pub(crate) db: PgPool,
     pub(crate) redis: RedisClient,
+    pub(crate) blacklist_service: Mutex<Box<dyn BlacklistService>>,
 }
 
 pub(crate) type State = Data<AppState>;
@@ -139,7 +142,12 @@ pub(crate) fn create_app(
         "Initializing server"
     );
 
-    let data = Data::new(AppState { jwt, db, redis });
+    let data = Data::new(AppState {
+        jwt,
+        db,
+        redis: redis.clone(),
+        blacklist_service: Mutex::new(Box::new(RedisBlacklistService::new(redis.get_connection()?))),
+    });
     Ok(App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())

@@ -5,6 +5,7 @@ mod logout;
 mod refresh;
 mod signup;
 mod user_info;
+pub(crate) mod services;
 
 pub(crate) fn router(path: &str) -> Scope {
     web::scope(path)

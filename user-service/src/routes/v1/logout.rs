@@ -1,58 +1,26 @@
-use std::cell::Cell;
-
-use actix_web::{body::BoxBody, post, HttpRequest, HttpResponse, Responder, ResponseError, http::StatusCode};
-use async_trait::async_trait;
-use mockall::automock;
-use serde_json::json;
+use actix_web::{
+    body::BoxBody, http::StatusCode, post, HttpRequest, HttpResponse, Responder, ResponseError,
+};
 use strum::Display;
-use redis::Commands;
 
 use crate::{
     login_check::{get_logged_in_user_claims, LoginCheckError},
-    State, ACCESS_TOKEN_BLACKLIST_KEY,
+    State,
 };
 
-struct RedisLogOutService(Cell<redis::Connection>);
-
-#[async_trait]
-#[automock]
-trait LogOutService {
-    async fn add_access_token(self, token: String) -> Result<bool, LogOutServiceError>;
-}
-
-#[derive(Debug)]
-pub(crate) enum LogOutServiceError {
-    RedisError(redis::RedisError),
-}
-
-impl From<redis::RedisError> for LogOutServiceError {
-    fn from(value: redis::RedisError) -> Self {
-        Self::RedisError(value)
-    }
-}
-
-#[async_trait]
-impl LogOutService for RedisLogOutService {
-    async fn add_access_token(mut self, token: String) -> Result<bool, LogOutServiceError> {
-        let conn = self.0.get_mut();
-
-        let result = conn.sadd(ACCESS_TOKEN_BLACKLIST_KEY, token)?;
-
-        Ok(result)
-    }
-}
+use super::services::BlacklistServiceError;
 
 #[derive(Debug, Display)]
 pub(crate) enum LogOutError {
     InternalError,
-    LogOutServiceError(LogOutServiceError),
+    BlacklistServiceError(BlacklistServiceError),
     NotLoggedIn,
     LoginCheckError(LoginCheckError),
 }
 
-impl From<LogOutServiceError> for LogOutError {
-    fn from(value: LogOutServiceError) -> Self {
-        Self::LogOutServiceError(value)
+impl From<BlacklistServiceError> for LogOutError {
+    fn from(value: BlacklistServiceError) -> Self {
+        Self::BlacklistServiceError(value)
     }
 }
 
@@ -74,17 +42,12 @@ impl ResponseError for LogOutError {
 }
 
 #[post("logout")]
-pub(crate) async fn logout_route(state: State, req: HttpRequest) -> Result<String, LogOutError> {
-    let jwt = state.jwt.clone();
-    let service = RedisLogOutService(Cell::new(
-        state
-            .redis
-            .get_connection()
-            .map_err(|_| LogOutError::InternalError)?,
-    ));
+pub(crate) async fn logout_route(state: State, req: HttpRequest) -> Result<HttpResponse, LogOutError> {
+    let jwt = &state.jwt;
+    let mut service = state.blacklist_service.lock().unwrap();
 
     // check if Authentication header has bearer token
-    let (token, _) = get_logged_in_user_claims(&req, jwt, state.redis.clone()).await?;
+    let (token, _) = get_logged_in_user_claims(&req, jwt.clone(), state.redis.clone()).await?;
 
     // add jwt to blacklist
 
@@ -97,7 +60,7 @@ pub(crate) async fn logout_route(state: State, req: HttpRequest) -> Result<Strin
     // get current refresh token
     // add refresh token to blacklist
 
-    Ok(json!({}).to_string())
+    Ok(HttpResponse::build(StatusCode::OK).finish())
 }
 
 #[post("logout/all")]
