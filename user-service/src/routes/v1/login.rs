@@ -78,13 +78,13 @@ pub(crate) async fn login_route(
     state: State,
     req: HttpRequest,
 ) -> Result<HttpResponse, LoginError> {
-    let jwt = state.jwt.clone();
-    let db = state.db.clone();
-    let redis_client = state.redis.clone();
+    let jwt = &state.jwt;
+    let db = &state.db;
+    let mut blacklist = state.blacklist_service.lock().await;
     let config = Config::global();
     let argon = argon2::Argon2::default();
 
-    if get_logged_in_user_claims(&req, jwt.clone(), redis_client).await.is_ok() {
+    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut()).await.is_ok() {
         return Err(LoginError::AlreadyLoggedIn);
     };
 
@@ -92,7 +92,7 @@ pub(crate) async fn login_route(
 
     let LoginDTO { username, password } = body.into_inner();
     let user = sqlx::query_as!(User, "SELECT * FROM users WHERE username = $1", username)
-        .fetch_one(&db)
+        .fetch_one(db)
         .await
         .map_err(LoginError::from)?;
 
@@ -108,7 +108,7 @@ pub(crate) async fn login_route(
         WHERE user_id = $1 AND credential_type = 'password'"#,
         user.id
     )
-    .fetch_one(&db)
+    .fetch_one(db)
     .await
     .map_err(LoginError::from)?;
 

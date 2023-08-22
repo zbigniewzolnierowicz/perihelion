@@ -94,13 +94,13 @@ impl JwtService {
         })
     }
 
-    pub fn decode(self, token: &str) -> Result<TokenData<Claims>, JwtServiceError> {
+    pub fn decode(&self, token: &str) -> Result<TokenData<Claims>, JwtServiceError> {
         let decoded = jsonwebtoken::decode::<Claims>(token, &self.decode_key, &self.validation)?;
 
         Ok(decoded)
     }
 
-    pub fn encode(self, claims: Claims) -> Result<String, JwtServiceError> {
+    pub fn encode(&self, claims: Claims) -> Result<String, JwtServiceError> {
         let decoded =
             jsonwebtoken::encode(&Header::new(Algorithm::RS256), &claims, &self.encode_key)?;
 

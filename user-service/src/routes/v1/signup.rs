@@ -75,11 +75,11 @@ pub(crate) async fn signup_route(
     state: State,
     req: HttpRequest,
 ) -> Result<impl Responder, SignupError> {
-    let jwt = state.jwt.clone();
-    let db = state.db.clone();
-    let redis_client = state.redis.clone();
+    let jwt = &state.jwt;
+    let db = &state.db;
+    let mut blacklist = state.blacklist_service.lock().await;
 
-    if get_logged_in_user_claims(&req, jwt, redis_client).await.is_ok() {
+    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut()).await.is_ok() {
         return Err(SignupError::AlreadyLoggedIn);
     };
 

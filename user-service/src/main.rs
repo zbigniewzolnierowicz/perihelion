@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-#![deny(clippy::unwrap_used)]
-#![deny(clippy::expect_used)]
 
 pub(crate) mod config;
 pub(crate) mod dto;
@@ -13,7 +11,7 @@ pub(crate) mod routes;
 pub(crate) mod test_utils;
 
 use std::fs;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};

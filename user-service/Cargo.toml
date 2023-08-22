@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Async runtime
+tokio = "1.32.0"
+
 # Web framework
 actix-web = "4"
 

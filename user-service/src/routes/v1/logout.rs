@@ -44,10 +44,10 @@ impl ResponseError for LogOutError {
 #[post("logout")]
 pub(crate) async fn logout_route(state: State, req: HttpRequest) -> Result<HttpResponse, LogOutError> {
     let jwt = &state.jwt;
-    let mut service = state.blacklist_service.lock().unwrap();
+    let mut service = state.blacklist_service.lock().await;
 
     // check if Authentication header has bearer token
-    let (token, _) = get_logged_in_user_claims(&req, jwt.clone(), state.redis.clone()).await?;
+    let (token, _) = get_logged_in_user_claims(&req, jwt, service.as_mut()).await?;
 
     // add jwt to blacklist
 

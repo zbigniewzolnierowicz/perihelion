@@ -54,9 +54,9 @@ pub(crate) async fn user_info_route(
     state: State,
     req: HttpRequest,
 ) -> Result<web::Json<User>, UserInfoError> {
-    let jwt = state.jwt.clone();
-    let redis_client = state.redis.clone();
-    let (_, claims) = get_logged_in_user_claims(&req, jwt, redis_client)
+    let jwt = &state.jwt;
+    let mut blacklist = state.blacklist_service.lock().await;
+    let (_, claims) = get_logged_in_user_claims(&req, jwt, blacklist.as_mut())
         .await
         .map_err(UserInfoError::from)?;
     let db = state.db.clone();

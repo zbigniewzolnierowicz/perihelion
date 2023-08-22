@@ -4,12 +4,11 @@ use actix_web::{
     http::StatusCode,
     HttpRequest, HttpResponse, ResponseError,
 };
-use redis::Commands;
 
 use crate::{
     error::AppErrorResponse,
     jwt::{Claims, JwtService, JwtServiceError},
-    ACCESS_TOKEN_BLACKLIST_KEY,
+    routes::v1::services::{BlacklistService, BlacklistServiceError},
 };
 
 use derive_more::{Display, Error};
@@ -25,6 +24,7 @@ pub(crate) enum LoginCheckError {
     NoBearer,
     RedisError(redis::RedisError),
     BlacklistedToken,
+    BlacklistServiceError(BlacklistServiceError)
 }
 
 impl From<ToStrError> for LoginCheckError {
@@ -42,6 +42,12 @@ impl From<JwtServiceError> for LoginCheckError {
 impl From<redis::RedisError> for LoginCheckError {
     fn from(value: redis::RedisError) -> Self {
         Self::RedisError(value)
+    }
+}
+
+impl From<BlacklistServiceError> for LoginCheckError {
+    fn from(value: BlacklistServiceError) -> Self {
+        Self::BlacklistServiceError(value)
     }
 }
 
@@ -75,8 +81,8 @@ static BEARER: &str = "Bearer ";
 
 pub(crate) async fn get_logged_in_user_claims(
     req: &HttpRequest,
-    jwt: JwtService,
-    rclient: redis::Client,
+    jwt: &JwtService,
+    blacklist: &mut dyn BlacklistService
 ) -> Result<(String, Claims), LoginCheckError> {
     // check if Authentication header has bearer token
     // if yes, error out, because the user isn't logged in
@@ -86,7 +92,6 @@ pub(crate) async fn get_logged_in_user_claims(
         .ok_or(LoginCheckError::NoAuthHeader)?
         .to_str()?
         .to_string();
-    let mut redis_conn = rclient.get_connection()?;
 
     if !token.starts_with(BEARER) {
         return Err(LoginCheckError::NoBearer);
@@ -100,8 +105,10 @@ pub(crate) async fn get_logged_in_user_claims(
     let decoded = jwt.decode(token)?;
 
     // check if access token is on blacklist
-    let access_token_is_in_blacklist: bool =
-        redis_conn.sismember(ACCESS_TOKEN_BLACKLIST_KEY, token)?;
+    let access_token_is_in_blacklist: bool = blacklist
+        .is_access_token_in_blacklist(token.to_string())
+        .await
+        .map_err(LoginCheckError::from)?;
 
     if access_token_is_in_blacklist {
         return Err(LoginCheckError::BlacklistedToken);
