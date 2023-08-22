@@ -6,6 +6,7 @@ use crate::{
     error::AppErrorResponse,
     login_check::{get_logged_in_user_claims, LoginCheckError},
     models::user::User,
+    routes::v1::UserServiceState,
     State,
 };
 
@@ -52,10 +53,11 @@ impl ResponseError for UserInfoError {
 #[get("me")]
 pub(crate) async fn user_info_route(
     state: State,
+    user_service_state: UserServiceState,
     req: HttpRequest,
 ) -> Result<web::Json<User>, UserInfoError> {
-    let jwt = &state.jwt;
-    let mut blacklist = state.blacklist_service.lock().await;
+    let jwt = &user_service_state.jwt;
+    let mut blacklist = user_service_state.blacklist_service.lock().await;
     let (_, claims) = get_logged_in_user_claims(&req, jwt, blacklist.as_mut())
         .await
         .map_err(UserInfoError::from)?;

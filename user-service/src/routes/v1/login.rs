@@ -16,6 +16,8 @@ use crate::{
     State,
 };
 
+use super::UserServiceState;
+
 #[derive(Debug, Display)]
 pub(crate) enum LoginError {
     LoginCheckError(LoginCheckError),
@@ -76,15 +78,19 @@ impl From<JwtServiceError> for LoginError {
 pub(crate) async fn login_route(
     body: web::Json<LoginDTO>,
     state: State,
+    user_service_state: UserServiceState,
     req: HttpRequest,
 ) -> Result<HttpResponse, LoginError> {
-    let jwt = &state.jwt;
     let db = &state.db;
-    let mut blacklist = state.blacklist_service.lock().await;
+    let jwt = &user_service_state.jwt;
+    let mut blacklist = user_service_state.blacklist_service.lock().await;
     let config = Config::global();
     let argon = argon2::Argon2::default();
 
-    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut()).await.is_ok() {
+    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut())
+        .await
+        .is_ok()
+    {
         return Err(LoginError::AlreadyLoggedIn);
     };
 

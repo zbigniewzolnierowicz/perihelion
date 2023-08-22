@@ -8,7 +8,7 @@ use actix_web::{
 use crate::{
     error::AppErrorResponse,
     jwt::{Claims, JwtService, JwtServiceError},
-    routes::v1::services::{BlacklistService, BlacklistServiceError},
+    routes::v1::services::blacklist::{BlacklistService, BlacklistServiceError},
 };
 
 use derive_more::{Display, Error};
@@ -24,7 +24,7 @@ pub(crate) enum LoginCheckError {
     NoBearer,
     RedisError(redis::RedisError),
     BlacklistedToken,
-    BlacklistServiceError(BlacklistServiceError)
+    BlacklistServiceError(BlacklistServiceError),
 }
 
 impl From<ToStrError> for LoginCheckError {
@@ -82,7 +82,7 @@ static BEARER: &str = "Bearer ";
 pub(crate) async fn get_logged_in_user_claims(
     req: &HttpRequest,
     jwt: &JwtService,
-    blacklist: &mut dyn BlacklistService
+    blacklist: &mut dyn BlacklistService,
 ) -> Result<(String, Claims), LoginCheckError> {
     // check if Authentication header has bearer token
     // if yes, error out, because the user isn't logged in

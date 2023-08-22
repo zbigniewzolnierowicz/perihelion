@@ -8,7 +8,7 @@ use crate::{
     State,
 };
 
-use super::services::BlacklistServiceError;
+use super::{services::blacklist::BlacklistServiceError, UserServiceState};
 
 #[derive(Debug, Display)]
 pub(crate) enum LogOutError {
@@ -42,9 +42,13 @@ impl ResponseError for LogOutError {
 }
 
 #[post("logout")]
-pub(crate) async fn logout_route(state: State, req: HttpRequest) -> Result<HttpResponse, LogOutError> {
+pub(crate) async fn logout_route(
+    state: State,
+    user_service_state: UserServiceState,
+    req: HttpRequest,
+) -> Result<HttpResponse, LogOutError> {
     let jwt = &state.jwt;
-    let mut service = state.blacklist_service.lock().await;
+    let mut service = user_service_state.blacklist_service.lock().await;
 
     // check if Authentication header has bearer token
     let (token, _) = get_logged_in_user_claims(&req, jwt, service.as_mut()).await?;

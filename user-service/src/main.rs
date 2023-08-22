@@ -11,7 +11,6 @@ pub(crate) mod routes;
 pub(crate) mod test_utils;
 
 use std::fs;
-use tokio::sync::Mutex;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
@@ -36,7 +35,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 use crate::config::Config;
 use crate::jwt::JwtService;
 use crate::routes::v1;
-use crate::routes::v1::services::{BlacklistService, RedisBlacklistService};
+use crate::routes::v1::services::blacklist::RedisBlacklistService;
 
 pub(crate) const PONG: &str = "pong!";
 pub(crate) const ACCESS_TOKEN_BLACKLIST_KEY: &str = "access_token:blacklist";
@@ -47,11 +46,11 @@ async fn ping() -> impl Responder {
     PONG
 }
 
+#[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) jwt: JwtService,
     pub(crate) db: PgPool,
     pub(crate) redis: RedisClient,
-    pub(crate) blacklist_service: Mutex<Box<dyn BlacklistService>>,
 }
 
 pub(crate) type State = Data<AppState>;
@@ -140,16 +139,22 @@ pub(crate) fn create_app(
         "Initializing server"
     );
 
-    let data = Data::new(AppState {
+    let state = AppState {
         jwt,
         db,
         redis: redis.clone(),
-        blacklist_service: Mutex::new(Box::new(RedisBlacklistService::new(redis.get_connection()?))),
-    });
+    };
+
+    let data = Data::new(state.clone());
+
     Ok(App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
         .service(ping)
         .service(health::router("health"))
-        .service(v1::router("api/v1")))
+        .service(v1::router(
+            "api/v1",
+            state.jwt.clone(),
+            RedisBlacklistService::new(redis.get_connection()?),
+        )))
 }

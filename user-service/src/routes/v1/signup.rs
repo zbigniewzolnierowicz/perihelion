@@ -9,11 +9,13 @@ use validator::Validate;
 
 use crate::{
     dto::user::CreateUserPasswordDTO, error::AppErrorResponse,
-    login_check::get_logged_in_user_claims, models::user::User, State,
+    login_check::get_logged_in_user_claims, models::user::User, routes::v1::UserServiceState,
+    State,
 };
 
 use derive_more::Display;
 
+// TODO: extract to separate file
 #[derive(Debug, Display)]
 pub(crate) enum SignupError {
     #[display(fmt = "User is already logged in.")]
@@ -73,17 +75,23 @@ impl ResponseError for SignupError {
 pub(crate) async fn signup_route(
     body: web::Json<CreateUserPasswordDTO>,
     state: State,
+    user_service_state: UserServiceState,
     req: HttpRequest,
 ) -> Result<impl Responder, SignupError> {
     let jwt = &state.jwt;
     let db = &state.db;
-    let mut blacklist = state.blacklist_service.lock().await;
+    let mut blacklist = user_service_state.blacklist_service.lock().await;
 
-    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut()).await.is_ok() {
+    if get_logged_in_user_claims(&req, jwt, blacklist.as_mut())
+        .await
+        .is_ok()
+    {
         return Err(SignupError::AlreadyLoggedIn);
     };
 
     body.validate().map_err(SignupError::from)?;
+    
+    // TODO: extract user logic to separate service
 
     let CreateUserPasswordDTO {
         username,
