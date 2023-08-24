@@ -102,15 +102,18 @@ impl BlacklistService for RedisBlacklistService {
         self.add_tokens(ACCESS_TOKEN_BLACKLIST_KEY, tokens)
     }
 
-    fn add_refresh_token(&mut self,token:String) -> Result<bool,BlacklistServiceError> {
+    fn add_refresh_token(&mut self, token: String) -> Result<bool, BlacklistServiceError> {
         self.add_token(REFRESH_TOKEN_BLACKLIST_KEY, token)
     }
-    
-    fn add_refresh_tokens(&mut self,tokens:Vec<String>) -> Result<bool,BlacklistServiceError> {
+
+    fn add_refresh_tokens(&mut self, tokens: Vec<String>) -> Result<bool, BlacklistServiceError> {
         self.add_tokens(REFRESH_TOKEN_BLACKLIST_KEY, tokens)
     }
 
-    fn is_refresh_token_in_blacklist(&mut self,token:String,) -> Result<bool,BlacklistServiceError> {
+    fn is_refresh_token_in_blacklist(
+        &mut self,
+        token: String,
+    ) -> Result<bool, BlacklistServiceError> {
         self.is_in_blacklist(REFRESH_TOKEN_BLACKLIST_KEY, token)
     }
 }
