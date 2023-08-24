@@ -40,6 +40,7 @@ use crate::routes::v1::services::blacklist::RedisBlacklistService;
 pub(crate) const PONG: &str = "pong!";
 pub(crate) const ACCESS_TOKEN_BLACKLIST_KEY: &str = "access_token:blacklist";
 pub(crate) const REFRESH_TOKEN_BLACKLIST_KEY: &str = "refresh_token:blacklist";
+pub(crate) const REFRESH_TOKEN_COOKIE: &str = "refresh_token";
 
 #[get("/ping")]
 async fn ping() -> impl Responder {
@@ -155,6 +156,6 @@ pub(crate) fn create_app(
         .service(v1::router(
             "api/v1",
             state.jwt.clone(),
-            RedisBlacklistService::new(redis.get_connection()?),
+            RedisBlacklistService::new(redis),
         )))
 }

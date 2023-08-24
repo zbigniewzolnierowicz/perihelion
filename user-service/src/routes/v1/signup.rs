@@ -90,7 +90,7 @@ pub(crate) async fn signup_route(
     };
 
     body.validate().map_err(SignupError::from)?;
-    
+
     // TODO: extract user logic to separate service
 
     let CreateUserPasswordDTO {

@@ -1,29 +1,39 @@
 use derive_more::Error;
 use strum::Display;
-use tokio::sync::Mutex;
 
-use async_trait::async_trait;
 use mockall::automock;
+use redis::Commands;
 
-use crate::ACCESS_TOKEN_BLACKLIST_KEY;
+use crate::{ACCESS_TOKEN_BLACKLIST_KEY, REFRESH_TOKEN_BLACKLIST_KEY};
 
-pub(crate) struct RedisBlacklistService(pub(crate) Mutex<Box<dyn redis::ConnectionLike + Send>>);
+pub(crate) struct RedisBlacklistService(redis::Client);
 
-#[async_trait]
 #[automock]
 pub(crate) trait BlacklistService {
-    async fn add_token(
+    fn add_token(
         &mut self,
         key: &'static str,
         token: String,
     ) -> Result<bool, BlacklistServiceError>;
-    async fn is_in_blacklist(
+    fn add_tokens(
+        &mut self,
+        key: &'static str,
+        tokens: Vec<String>,
+    ) -> Result<bool, BlacklistServiceError>;
+    fn is_in_blacklist(
         &mut self,
         key: &'static str,
         token: String,
     ) -> Result<bool, BlacklistServiceError>;
-    async fn add_access_token(&mut self, token: String) -> Result<bool, BlacklistServiceError>;
-    async fn is_access_token_in_blacklist(
+    fn add_access_token(&mut self, token: String) -> Result<bool, BlacklistServiceError>;
+    fn add_access_tokens(&mut self, tokens: Vec<String>) -> Result<bool, BlacklistServiceError>;
+    fn is_access_token_in_blacklist(
+        &mut self,
+        token: String,
+    ) -> Result<bool, BlacklistServiceError>;
+    fn add_refresh_token(&mut self, token: String) -> Result<bool, BlacklistServiceError>;
+    fn add_refresh_tokens(&mut self, tokens: Vec<String>) -> Result<bool, BlacklistServiceError>;
+    fn is_refresh_token_in_blacklist(
         &mut self,
         token: String,
     ) -> Result<bool, BlacklistServiceError>;
@@ -40,52 +50,73 @@ impl From<redis::RedisError> for BlacklistServiceError {
     }
 }
 
-#[async_trait]
 impl BlacklistService for RedisBlacklistService {
-    async fn add_token(
+    fn add_token(
         &mut self,
         key: &'static str,
         token: String,
     ) -> Result<bool, BlacklistServiceError> {
-        let mut binding = self.0.lock().await;
-        let connection = binding.as_mut();
+        let mut connection = self.0.get_connection()?;
 
-        let result: bool = redis::cmd("SADD").arg(key).arg(token).query(connection)?;
+        connection.sadd(key, token)?;
 
-        Ok(result)
+        Ok(true)
     }
 
-    async fn add_access_token(&mut self, token: String) -> Result<bool, BlacklistServiceError> {
-        self.add_token(ACCESS_TOKEN_BLACKLIST_KEY, token).await
+    fn add_access_token(&mut self, token: String) -> Result<bool, BlacklistServiceError> {
+        self.add_token(ACCESS_TOKEN_BLACKLIST_KEY, token)
     }
 
-    async fn is_in_blacklist(
+    fn is_in_blacklist(
         &mut self,
         key: &'static str,
         token: String,
     ) -> Result<bool, BlacklistServiceError> {
-        let mut binding = self.0.lock().await;
-        let connection = binding.as_mut();
+        let mut connection = self.0.get_connection()?;
 
-        let result: bool = redis::cmd("SISMEMBER")
-            .arg(key)
-            .arg(token)
-            .query(connection)?;
+        let result: bool = connection.sismember(key, token)?;
 
         Ok(result)
     }
 
-    async fn is_access_token_in_blacklist(
+    fn is_access_token_in_blacklist(
         &mut self,
         token: String,
     ) -> Result<bool, BlacklistServiceError> {
         self.is_in_blacklist(ACCESS_TOKEN_BLACKLIST_KEY, token)
-            .await
+    }
+
+    fn add_tokens(
+        &mut self,
+        key: &'static str,
+        tokens: Vec<String>,
+    ) -> Result<bool, BlacklistServiceError> {
+        let mut connection = self.0.get_connection()?;
+
+        connection.sadd(key, tokens)?;
+
+        Ok(true)
+    }
+
+    fn add_access_tokens(&mut self, tokens: Vec<String>) -> Result<bool, BlacklistServiceError> {
+        self.add_tokens(ACCESS_TOKEN_BLACKLIST_KEY, tokens)
+    }
+
+    fn add_refresh_token(&mut self,token:String) -> Result<bool,BlacklistServiceError> {
+        self.add_token(REFRESH_TOKEN_BLACKLIST_KEY, token)
+    }
+    
+    fn add_refresh_tokens(&mut self,tokens:Vec<String>) -> Result<bool,BlacklistServiceError> {
+        self.add_tokens(REFRESH_TOKEN_BLACKLIST_KEY, tokens)
+    }
+
+    fn is_refresh_token_in_blacklist(&mut self,token:String,) -> Result<bool,BlacklistServiceError> {
+        self.is_in_blacklist(REFRESH_TOKEN_BLACKLIST_KEY, token)
     }
 }
 
 impl RedisBlacklistService {
-    pub(crate) fn new(conn: impl redis::ConnectionLike + Send + 'static) -> Self {
-        Self(Mutex::new(Box::new(conn)))
+    pub(crate) fn new(client: redis::Client) -> Self {
+        Self(client)
     }
 }

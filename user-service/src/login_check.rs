@@ -107,7 +107,6 @@ pub(crate) async fn get_logged_in_user_claims(
     // check if access token is on blacklist
     let access_token_is_in_blacklist: bool = blacklist
         .is_access_token_in_blacklist(token.to_string())
-        .await
         .map_err(LoginCheckError::from)?;
 
     if access_token_is_in_blacklist {

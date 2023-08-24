@@ -13,7 +13,7 @@ use crate::{
     jwt::{Claims, JwtServiceError},
     login_check::{get_logged_in_user_claims, LoginCheckError},
     models::user::{Credential, CredentialType, User},
-    State,
+    State, REFRESH_TOKEN_COOKIE,
 };
 
 use super::UserServiceState;
@@ -159,7 +159,7 @@ pub(crate) async fn login_route(
 
     // store refresh token in HttpOnly, Secure cookie
 
-    let rt_cookie = Cookie::build("refresh_token", refresh_token)
+    let rt_cookie = Cookie::build(REFRESH_TOKEN_COOKIE, refresh_token)
         .max_age(Duration::new(config.refresh_token_expiration, 0))
         .secure(true)
         .http_only(true)
@@ -177,8 +177,6 @@ pub(crate) async fn login_route(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-    #![allow(clippy::expect_used)]
     use actix_web::test;
     use actix_web::{cookie::Cookie, http::StatusCode};
     use reqwest::header::{AUTHORIZATION, SET_COOKIE};
